@@ -20,3 +20,5 @@ window.__RADIO_UI_READY__ = ready.then(() => { window.__RADIO_UI_READY__ = true;
 });
 
 if (window.__RADIO_SMOKE_AUTORUN__) import('./native-smoke.js').then(({ runNativeSmoke }) => ready.then(() => runNativeSmoke(ui, bridge)));
+
+if(window.__RADIO_STARTUP_PROBE__) import("./startup-probe.js").then(({runStartupProbe})=>ready.then(()=>runStartupProbe(ui,bridge)));

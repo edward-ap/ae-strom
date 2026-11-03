@@ -7,3 +7,5 @@ Tauri commands enqueue actions to the bounded 256-message controller queue. Repl
 All ordinary controls are Tæt UI live instances. The public components bundle has one foundation identity. SpectrumAnalyzer and ChannelIndicator are application-owned BaseControl extensions, with their own geometry/CSS/timers and owner teardown. No second framework/BaseControl or runtime JS dependency is added. The framework JS/CSS/fonts/types are immutable pinned delivery bytes.
 
 Config retains sparse stationBanks/legacy import compatibility, custom EQ collision handling, URL trimming on explicit import and atomic save behavior. Naming migration changes only crate references and app identity/data root; it does not change audio or JSON semantics. No automatic discovery/migration of prior profiles exists.
+
+Startup mode/profile routing is in src/launch.rs. Default is live/stopped, with portable local-data/player beside the full EXE; the normal Cargo release layout shares the project root. Fake is explicit and isolated. There is no launcher dependency or implicit AppData/preview fallback.

@@ -192,72 +192,15 @@ async fn save_ui_evidence(
         return Err("Evidence body too large".into());
     }
     let ui: Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
-    let record = json!({"ui":ui,"host":{"pid":std::process::id(),"packageName":app.package_info().name,"productName":app.config().product_name,"identifier":app.config().identifier,"windowTitle":window.title().map_err(|e|e.to_string())?,"version":app.package_info().version.to_string(),"dataIsAbsolute":state.data.is_absolute(),"profileName":state.data.file_name().map(|s|s.to_string_lossy().into_owned()),"webview":tauri::webview_version().unwrap_or_default(),"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"size":window.inner_size().map_err(|e|e.to_string())?,"mode":state.controller.snapshot().mode,"audioAllowed":false,"layouts":*state.layouts.lock().unwrap(),"startup":state.startup.0.lock().unwrap().evidence}});
+    let record = json!({"ui":ui,"host":{"pid":std::process::id(),"packageName":app.package_info().name,"productName":app.config().product_name,"identifier":app.config().identifier,"windowTitle":window.title().map_err(|e|e.to_string())?,"version":app.package_info().version.to_string(),"dataIsAbsolute":state.data.is_absolute(),"profileName":state.data.file_name().map(|s|s.to_string_lossy().into_owned()),"webview":tauri::webview_version().unwrap_or_default(),"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"size":window.inner_size().map_err(|e|e.to_string())?,"mode":state.controller.snapshot().mode,"audioAllowed":false,"engineDiagnostics":state.controller.diagnostics().ok(),"layouts":*state.layouts.lock().unwrap(),"startup":state.startup.0.lock().unwrap().evidence}});
     let path = state.data.join("native-ui.json");
     std::fs::write(path, serde_json::to_vec_pretty(&record).unwrap()).map_err(|e| e.to_string())?;
     let controller = state.controller.clone();
     finish(app, controller).await
 }
-struct Options {
-    data: PathBuf,
-    mode: PlaybackMode,
-    smoke: bool,
-    import: Option<PathBuf>,
-}
-fn options() -> Result<Options, String> {
-    let mut data = None;
-    let mut live = false;
-    let mut smoke = false;
-    let mut import = None;
-    let mut args = std::env::args().skip(1);
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--data-dir" => {
-                data = Some(PathBuf::from(
-                    args.next()
-                        .ok_or("--data-dir requires an absolute directory")?,
-                ))
-            }
-            "--enable-live-audio" => live = true,
-            "--smoke" => smoke = true,
-            "--fake" => live = false,
-            "--import-config" => {
-                import = Some(PathBuf::from(
-                    args.next()
-                        .ok_or("--import-config requires a source file")?,
-                ))
-            }
-            _ => return Err(format!("Unknown argument: {arg}")),
-        }
-    }
-    if smoke && live {
-        return Err("Smoke mode cannot enable live audio".into());
-    }
-    let base = std::env::var_os("LOCALAPPDATA")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("XDG_DATA_HOME").map(PathBuf::from))
-        .or_else(|| std::env::var_os("HOME").map(|p| PathBuf::from(p).join(".local/share")))
-        .ok_or("Provide --data-dir; no application data directory found")?;
-    let data = data.unwrap_or_else(|| {
-        base.join("AeStrom")
-            .join(if live { "player" } else { "preview" })
-    });
-    if !data.is_absolute() {
-        return Err("--data-dir must be absolute".into());
-    }
-    Ok(Options {
-        data,
-        mode: if live {
-            PlaybackMode::Live
-        } else {
-            PlaybackMode::Fake
-        },
-        smoke,
-        import,
-    })
-}
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let options = options().map_err(std::io::Error::other)?;
+    let options = ae_strom::launch::parse(std::env::args().skip(1), &std::env::current_exe()?)
+        .map_err(std::io::Error::other)?;
     if options.mode == PlaybackMode::Live && !cfg!(feature = "live-audio") {
         return Err("Rebuild with --features live-audio before enabling real audio".into());
     }
@@ -293,7 +236,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             app.manage(Host {
                 controller,
                 data: options.data.clone(),
-                smoke: options.smoke,
+                smoke: options.smoke || options.startup_probe,
                 layouts: Mutex::new(Vec::new()),
                 startup: Arc::new((
                     Mutex::new(StartupState {
@@ -313,7 +256,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .visible(false)
             .background_color(tauri::window::Color(0, 0, 0, 255))
             .data_directory(options.data.join("webview"))
-            .initialization_script(if options.smoke {
+            .initialization_script(if options.startup_probe {
+                "window.__RADIO_STARTUP_PROBE__=true;window.__RADIO_SMOKE_AUTORUN__=false;"
+            } else if options.smoke {
                 "window.__RADIO_SMOKE_AUTORUN__=true;"
             } else {
                 "window.__RADIO_SMOKE_AUTORUN__=false;"
@@ -365,6 +310,23 @@ fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
     if let Err(error) = run() {
         eprintln!("Æ Strøm: {error}");
+        #[cfg(windows)]
+        {
+            #[link(name = "user32")]
+            extern "system" {
+                fn MessageBoxW(
+                    window: *mut std::ffi::c_void,
+                    text: *const u16,
+                    caption: *const u16,
+                    flags: u32,
+                ) -> i32;
+            }
+            let text:Vec<u16>=format!("Unable to start Æ Strøm. Keep the portable folder writable; no other profile was substituted.\n{error}").encode_utf16().chain(Some(0)).collect();
+            let caption: Vec<u16> = "Æ Strøm".encode_utf16().chain(Some(0)).collect();
+            unsafe {
+                MessageBoxW(std::ptr::null_mut(), text.as_ptr(), caption.as_ptr(), 0x10);
+            }
+        }
         std::process::exit(1);
     }
 }

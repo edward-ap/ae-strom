@@ -1,44 +1,33 @@
-# Configured live-audio candidate
+# Single full executable verification
 
-Æ Strøm **0.1.0**, Tauri 2.12.1, pinned published **taet-ui@0.6.0-rc.4**, source bfd3ddcddf1cdc539397e5d2ac5ed3cb976e72c2. No framework vendor/core patch or JS runtime dependency was introduced.
+Æ Strøm 0.1.0, Tauri 2.12.1 and pinned published taet-ui 0.6.0-rc.4. Canonical executable: **ae-strom.exe in the project root**, the complete application, **18591744 bytes**, SHA256 **d7a10aae70022bf32f70c97ce1495d04259ba506d8133a7ecff2d7a49b8103a9**. The same full binary is at target/release/ae-strom.exe. No launcher is required.
 
-## Normal desktop launch
+## Behavior and data
 
-Double-click **ae-strom-player.exe** in the project root. No command-line flags, console window or script host are required. It launches the full `target/release/ae-strom.exe` with explicit live mode and the absolute project-local **local-data/player** profile. Playback starts **Stopped**; use Play. The main GUI run directly without flags remains a silent preview for development.
+Double-click starts real live mode, **Stopped**. Fake is explicit --fake only. All UI/assets/fonts/audio code are embedded; only normal Windows libraries and the installed WebView2 runtime remain external. A copied single EXE was run successfully without adjacent sources, Node/npm, fonts or web folders.
 
-The user explicitly authorized copying the existing working profile. Its source was read-only, the destination did not previously exist, and every JSON field was preserved exactly. Rust schema validation and exact save/load roundtrip passed on a separate audit copy before installation. All station banks/slots, metadata settings, EQ assignments, custom preamp/bands, volume/mute, active selection, window geometry and polling settings were retained. No backup/overwrite was needed. No personal config, URLs, metadata or transfer reports are in Git. Original sources/EXE and the original legacy configuration remain untouched.
+The portable data directory is **local-data/player beside the EXE**. The project-root delivery therefore uses the already transferred profile without copying, migrating, normalizing or overwriting it. Its hash before/after this change is identical. All existing stations, banks, EQ assignments/custom settings and other persisted fields remain. Personal settings are external editable data, never built into the EXE or Git. Exact private URL strings were scanned against the main EXE with zero matches. Git source/provenance checks also exclude configs/logs/binaries. The original player/profile and legacy configuration were not changed.
+
+Cargo's project release build shares that same project-root profile when source markers exist. Moving only the EXE to another writable directory creates that directory's own fresh portable profile; move local-data/player/config.json too to retain stations. An absolute --data-dir override remains available. Normal startup never substitutes empty preview/AppData data. Unwritable/invalid profiles report a startup error. Earlier launcher/main binaries and a profile backup are preserved outside Git in the ignored rollback directory.
 
 ## Final gates
 
 | Gate | Result |
 | --- | --- |
-| Browser | **64/64**, DPR 1/1.5; syntax, strict types and pinned vendor checks PASS |
-| Rust | **30 library + 4 launcher unit tests, 7 doc tests**, fmt, Clippy, locked offline release bins/examples build PASS |
-| Native GUI | **33/33** real Tauri/WebView2 fake checks on the final main EXE; prior startup matrix covered four saved-position cases |
-| Native launcher | Actual Windows process test with a synthetic child: explicit live flag, absolute profile path and quoting through a directory containing spaces PASS; no user profile or audio opened |
-| Profile | Offline validation and exact all-field JSON roundtrip; source hash before/after unchanged; private transfer verification PASS |
-| Live backend | **2/2 bounded Play phases with Stop between**, app volume 10%, non-silent PCM and output callbacks in both, total 4106 ms |
+| Browser | **64/64**, DPR 1/1.5; strict types, 25 JS syntax files and pinned vendor integrity PASS |
+| Rust | **36 unit + 7 doc**, fmt, Clippy, locked offline default-feature bins/examples release build PASS |
+| Native explicit fake | **33/33** final Tauri/WebView2 UI checks |
+| Native single EXE | **6 checks × 2 starts**, default live/stopped, portable profile, embedded fonts/assets and persisted settings |
+| Restart | First run loaded volume 17 and saved 18; second loaded 18 and saved 19; station banks/custom EQ retained |
+| No autoplay | Native startup snapshot stayed stopped/requestedPlaying=false; engine diagnostics inactive; startup probes never requested Play |
+| Live backend | **2/2** approved bounded Play/Stop phases, app volume 10%, non-silent PCM/output callbacks in both, 4072 ms total |
 | Cleanup | audio/http/metadata/sessionOwners all **0** after shutdown; system volume/device unchanged |
+| Framework | Exact rc.4 runtime/types/fonts/licenses unchanged; one BaseControl, no new JS runtime dependency |
 
-The permitted Get-Process name inventory found no competing radio/player before the live test. WMI/CIM was not retried or bypassed. Only the explicitly user-approved sample stream was contacted; imported station URLs were not fetched. Live evidence was captured privately. PCM/callback evidence establishes decoding and real device callbacks; **user-heard quality is unconfirmed**. Seven existing Clippy style warnings remain.
+Seven existing Clippy style warnings remain. Audio/decoder/DSP/controller/config domain logic was preserved. The actual single-EXE native probes used a fresh synthetic profile marked explicitly for the test seam and ran from a different cwd; no personal profile was opened by these tests. A permitted Get-Process name inventory found no competing player immediately before the bounded audio test. No WMI/CIM retry or security change was used.
 
-## Executables
+Native fake/single-EXE checks exercise real transport/DOM/window metadata, not physical OS input. Live evidence is a bounded Rust backend/device-callback check using the same current audio engine, not a claim of human-heard quality. User-heard sound quality, long listening, physical IME/accessibility/clipboard, actual multi-monitor DPI transitions, native 100%, non-Windows, installers and signing remain manual/pending. Prior startup geometry and current UI retain hidden-black font/layout-ready reveal; first compositor-frame observation is not claimed.
 
-- Normal launcher `ae-strom-player.exe`: **253440 bytes**, SHA256 `7a91253bbc7c1d4aff678ec5b7b8b73c879f5290a094bd9efd501b18d5099b1f`.
-- Main GUI `target/release/ae-strom.exe`: **18595840 bytes**, SHA256 `89b129bad8c0272ea6a7b202688fa8c8e47d65c6308db4027e126e2304ed4d96`; live-audio compiled in.
+## Evidence and readiness
 
-The full main executable can also be invoked explicitly:
-
-```powershell
-./target/release/ae-strom.exe --enable-live-audio --data-dir (Join-Path $PWD 'local-data/player')
-```
-
-## Preserved UI and remaining acceptance
-
-Normal 725×36, compact 102×36, Settings 725×258 and EQ 725×257 logical px. The protruding status row remains removed; errors use ticker/live feedback. Native creation remains hidden/black until font/UI geometry and restored/clamped/centered monitor position are ready. Noto Sans 12 px is local, integrity-checked and uniform. All accepted Settings/EQ/channel/spectrum controls and interactions remain.
-
-The earlier four-case startup evidence verifies stable exact native geometry before/after show. Immediate per-layout diagnostics may capture a prior Windows size while rapid asynchronous resize messages settle; they are not treated as settled panel-frame acceptance. Native physical mouse/keyboard/IME/accessibility, first-compositor-frame visual observation, multi-monitor hardware transitions and native 100% still require manual checks. Current native host is WebView2 156.0.4314.58, scale 1.5. Longer listening, non-Windows, installers/signing remain pending; this is a local runnable candidate, not a public signed release.
-
-## Evidence and Git
-
-Ignored local-data holds profile-transfer.json, the copied audit profile/roundtrip, followup/live-summary.json, launcher probe evidence, Rust/browser/native logs and delivery.json. Final GUI native record: `local-data/native-smoke-20261103-191945-605/native-ui.json`. SOURCE_PROVENANCE.json records public source and EXE hashes without personal content. No shortcut, system configuration, installation, remote, push or publication was created.
+Ignored local-data/followup contains single-tests-final.log, single-doc-final.log, single-clippy-final.log, single-build-final.log, single-ui.log, single-native-final.log, single-live-summary.json and single-install.json. Single-EXE save/restart evidence: `local-data/single exe smoke 20261103-195830-325/result.json`. Final fake evidence: `local-data/native-smoke-20261103-195941-437/native-ui.json`. Private profile preservation/rollback hashes are kept only under local-data. SOURCE_PROVENANCE.json records public source and EXE hashes. delivery.json records the local commit and canonical path. No installer, shortcut, remote, push or publication was created. This is a runnable local single-EXE candidate.

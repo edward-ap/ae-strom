@@ -1,52 +1,42 @@
 # Æ Strøm
 
-A compact radio player: native Rust audio, Tæt UI controls and a Tauri WebView.
-Technical project/crate names: `ae-strom` / `ae_strom`. Version 0.1.0 is a local test candidate.
+Compact native Rust radio with Tæt UI and a Tauri WebView. Technical project/crate: ae-strom / ae_strom, version 0.1.0.
 
-The configured desktop launcher is `ae-strom-player.exe` in the project root: double-click it for full Rust audio with the isolated `local-data/player` profile. It starts Stopped and never autoplays. The main `target/release/ae-strom.exe` still defaults to silent preview when run directly without flags. No previous profile is discovered or imported automatically.
+## Run
 
-## Build and run
+Double-click **ae-strom.exe** in the project root. It is the complete application, with native audio, UI, fonts and assets embedded. No launcher, flags, Node server or separate web folder is needed. Normal mode is **live**, startup is **Stopped**, and playback begins only with Play.
 
-Windows prerequisites: Rust MSVC and Windows C++ tools/SDK, Node 22+ for development, WebView2 for the desktop app. The packaged EXE uses no Node/npm server, React, web audio or remote UI assets.
+This is a portable layout. Settings/stations remain editable in **local-data/player/config.json beside the EXE**; WebView data is generated there in its own subfolder. The explicitly transferred profile is retained without alteration. Personal settings are not compiled into the EXE or committed. Move the EXE and local-data/player together to retain your stations; moving only the EXE creates a separate fresh portable profile. The folder must be writable. There is no silent fallback to AppData or preview data.
+
+The development target/release EXE uses the project-root profile when the normal Cargo source markers exist. A distribution in an ordinary folder uses the folder beside its EXE. --data-dir <absolute-directory> remains an explicit override. Fake playback is available only with **--fake**, using separate local-data/preview by default. The normal Windows WebView2 runtime is required; no application DLL bundle, React or JS runtime dependency is shipped.
+
+## Build and test
+
+Use Rust MSVC/Windows SDK and Node 22+ for development. Lockfiles are required.
 
 ```powershell
 npm ci --ignore-scripts
 npm run vendor
 npm test
-cargo test --release --locked --features live-audio
-cargo clippy --release --locked --all-targets --features live-audio
-cargo build --release --locked --features live-audio --bins
-./target/release/ae-strom.exe --fake
+cargo fmt --check
+cargo test --release --locked --all-targets
+cargo test --release --locked --doc
+cargo clippy --release --locked --all-targets
+cargo build --release --locked --bin ae-strom
 ```
 
-Browser preview: `npm run preview`. Native fake acceptance: `./scripts/native-smoke.ps1` after building. Build also produces `target/release/ae-strom-player.exe`; copy that launcher to the project root for the configured no-flags desktop launch. The launcher is a native GUI executable without a console or script host. The root launcher and all profiles stay outside Git.
+live-audio and custom-protocol are default features. The build output is target/release/ae-strom.exe. Copy the full EXE to the project root after preserving the previous version and checking it is not active. Test tools/examples can be built with --bins --examples; they are not application dependencies.
 
-## Profiles and listening
+Browser preview is `npm run preview` and stays synthetic. `scripts/native-smoke.ps1` runs explicit --fake checks in a fresh profile. `scripts/single-exe-smoke.ps1` copies only the full EXE into an isolated portable folder and verifies default live/stopped mode plus save/restart without playing audio. Its internal startup-smoke flag accepts only a marked synthetic fixture profile.
 
-New default roots are `%LOCALAPPDATA%/AeStrom/preview` and `%LOCALAPPDATA%/AeStrom/player` on Windows; the latter is used only with `--enable-live-audio`. Each contains its own config and WebView data. `--data-dir <absolute-directory>` overrides the root. The old player's app identity is not reused. An explicitly authorized profile transfer can populate `local-data/player`; it is never automatic.
+## Interface and framework
 
-After closing any competing radio session, an intentional listening launch is:
+- A–Z banks with ten slots; active playback and Settings browsing are separate.
+- Play/Stop, volume/mute, scrolling title and full-title Ctrl+C outside editors.
+- Ten-band EQ/preamp, custom presets and per-station assignments.
+- Frameless always-on-top window with noninteractive chrome drag and compact mode preserving state/drafts.
+- Physical A–Z keys, 1–9/0 slots, +/- volume and * mute, with editor/composition guards.
 
-```powershell
-$profileDirectory = Join-Path $PWD 'local-data/listening'
-./target/release/ae-strom.exe --enable-live-audio --data-dir $profileDirectory
-```
+Normal 725×36, compact 102×36, Settings 725×258, EQ 725×257 logical px. Noto Sans 12 px is bundled. Specialized SpectrumAnalyzer and ChannelIndicator remain app-owned on one BaseControl identity.
 
-It starts Stopped. Configure a chosen station in Settings, set app volume to 10% for initial listening, then use Play. This project includes no personal station list or mandatory live station default. Copying/importing an existing personal profile requires a separate explicit decision. An explicit `--import-config <selected-copy.json>` path exists, but is never invoked automatically.
-
-## Interface
-
-- A–Z banks, ten slots each; Settings browsing and active playback remain separate.
-- Play/Stop, volume/mute, scrolling track title and full-title Ctrl+C outside editors.
-- Ten-band EQ and preamp, built-in/custom presets and per-station assignments.
-- Frameless always-on-top window; drag through noninteractive top chrome.
-- Compact mode preserves the same session, values and drafts, showing expand, Play/Stop and spectrum.
-- Physical A–Z keys; 1–9/0 slots;+/− volume;* mute. No global shortcut registration.
-
-Geometry is preserved: normal 725×36, Settings 725×258, EQ 725×257 and compact 102×36. The channel frame is 40×26 and EQ Preset fields 110 px wide.
-
-## Framework and source
-
-Tæt UI is pinned exactly to `0.6.0-rc.4`, components ESM profile, release source `bfd3ddcddf1cdc539397e5d2ac5ed3cb976e72c2`. npm integrity, published source-file hashes, matching JS/CSS/fonts/licenses and public declarations are checked. `taet-ui` and esbuild are development dependencies; UI runtime dependencies are zero. Reproduction and limits: [BUILD.md](docs/BUILD.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [CONSUMER_NOTES.md](docs/CONSUMER_NOTES.md), [VERIFICATION.md](docs/VERIFICATION.md).
-
-This repository is local; no installer, GitHub repository or publication is implied. Native physical input, IME, accessibility, long listening soak and non-Windows acceptance remain separate gates.
+Tæt UI is pinned to published **taet-ui@0.6.0-rc.4**, components ESM, source bfd3ddcddf1cdc539397e5d2ac5ed3cb976e72c2. Runtime assets, public declarations, source hashes and npm integrity are checked. Technical dui CSS/DOM names are retained. See [BUILD.md](docs/BUILD.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [CONSUMER_NOTES.md](docs/CONSUMER_NOTES.md) and [VERIFICATION.md](docs/VERIFICATION.md).

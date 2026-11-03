@@ -36,7 +36,7 @@ clipboard-win = "=5.4.1"
 tauri-build = "=2.7.1"
 
 [features]
-default = ["custom-protocol"]
+default = ["custom-protocol", "live-audio"]
 custom-protocol = ["tauri/custom-protocol"]
 live-audio = ["dep:cpal", "dep:symphonia", "dep:biquad", "dep:realfft", "dep:num-complex", "dep:reqwest", "dep:tokio", "dep:ringbuf", "dep:rubato", "dep:html-escape"]
 
@@ -45,7 +45,3 @@ name = "ae-strom-live-check"
 path = "src/bin/live-check.rs"
 required-features = ["live-audio"]
 
-[[bin]]
-name = "ae-strom-player"
-path = "src/bin/player.rs"
-required-features = ["live-audio"]

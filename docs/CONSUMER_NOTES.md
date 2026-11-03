@@ -10,4 +10,4 @@ This migration follows an earlier source-aware audit; it is not a blind docs-onl
 
 Tauri PackageInfo.name follows config.productName when provided; it is the display name, not Cargo's crate_name. The native identity gate therefore checks Æ Strøm there, while Cargo metadata and the ae-strom.exe path identify the ASCII technical package. This was verified against the pinned tauri-codegen source before native testing.
 
-The live desktop entry point is a small native Rust launcher, independent of the component framework. It supplies explicit mode/profile arguments; no JS runtime, script host or automatic old-profile discovery is involved.
+The full main executable now defaults to live/stopped with a portable profile. This is native Rust startup policy, independent of the UI framework. Fake is explicit, and no launcher/script host is needed.
