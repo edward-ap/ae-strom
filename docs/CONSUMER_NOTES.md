@@ -13,3 +13,5 @@ Tauri PackageInfo.name follows config.productName when provided; it is the displ
 The full main executable now defaults to live/stopped with a portable profile. This is native Rust startup policy, independent of the UI framework. Fake is explicit, and no launcher/script host is needed.
 
 ScrollingLabelOptions has no public alignment option in the pinned declarations. Idle branding therefore uses public setPaused/setText and scoped app styling for centering/repeat visibility; its core lifecycle, observers and playing marquee remain unchanged. No new core patch or runtime dependency was introduced.
+
+The standard face is the bundled Noto Sans variable, with app text routed through Tæt font tokens. Native select popup/title tooltip typography is platform-owned and cannot be certified by computed DOM styles; FONT_AUDIT.md separates those limits from actual custom-face evidence.

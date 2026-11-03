@@ -68,3 +68,5 @@ When stopped without an error, the ticker shows **-= Æ Strøm =-** centered and
 Normal 725×36, compact 102×36, Settings 725×258, EQ 725×257 logical px. Noto Sans 12 px is bundled. Specialized SpectrumAnalyzer and ChannelIndicator remain app-owned on one BaseControl identity.
 
 Tæt UI is pinned to published **taet-ui@0.6.0-rc.4**, components ESM, source bfd3ddcddf1cdc539397e5d2ac5ed3cb976e72c2. Runtime assets, public declarations, source hashes and npm integrity are checked. Technical dui CSS/DOM names are retained. See [BUILD.md](docs/BUILD.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [CONSUMER_NOTES.md](docs/CONSUMER_NOTES.md) and [VERIFICATION.md](docs/VERIFICATION.md).
+
+Typography: bundled standard Noto Sans variable at 12 px. [Font audit and native/macOS limits](docs/FONT_AUDIT.md) records actual loading/rendering evidence and intentional OS fallback.

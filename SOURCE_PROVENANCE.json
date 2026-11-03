@@ -434,7 +434,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "c91358a28683948601e07f46ab3b7944eb6ec47d11a8bb2b71271a03940c4f87"
+      "sha256": "3e50398999bb4aca612cbdbe1650f628dec4e0438cbc6266022d281aa2f341c1"
     },
     {
       "path": "browser-tests/branding.spec.js",
@@ -455,6 +455,10 @@
     {
       "path": "browser-tests/followup.spec.js",
       "sha256": "5d6f930c0401f7d2cf6e07f31d25d159a484916152692a65795c165990cd8421"
+    },
+    {
+      "path": "browser-tests/font-audit.spec.js",
+      "sha256": "7d755021956e3f1a7ee61055fd162cf65eb8d7a0d1a44d8e79aeffc418842d5b"
     },
     {
       "path": "browser-tests/idle-brand.spec.js",
@@ -494,7 +498,11 @@
     },
     {
       "path": "docs/CONSUMER_NOTES.md",
-      "sha256": "fabdeafa1f079735ecbbd3ce8765a17ac1eb32d6feb727070e399f9d2da9b0a2"
+      "sha256": "530d9e6b1ef1adafa9a5e7d15141a0de62cd83033a0962910b94f3771d7c4c89"
+    },
+    {
+      "path": "docs/FONT_AUDIT.md",
+      "sha256": "f222b24a867650530a6b206bd9ea0d6191e46051c81c80d87ae4aa2d78a489f3"
     },
     {
       "path": "docs/MANUAL_ACCEPTANCE.md",
@@ -510,7 +518,7 @@
     },
     {
       "path": "docs/VERIFICATION.md",
-      "sha256": "13d91bf9ef9310c90bb212cfb33bc640fc25221994c6a4b11475c6a062c13bb5"
+      "sha256": "71be08dd83ee4032c6bb8b9a008f73612e20797518a121f38c428e759f3a5239"
     },
     {
       "path": "docs/images/compact.png",
@@ -586,7 +594,7 @@
     },
     {
       "path": "scripts/startup-smoke.ps1",
-      "sha256": "6025510fa7796e4cb61ce958cc9dfbb6a61bb1200aeccefe0375152400a2cbb0"
+      "sha256": "899c9e8b735a468570a16d0b62247a3e4044146c7e45f275c255685e5fdea7d2"
     },
     {
       "path": "scripts/vendor-taet.js",
@@ -721,6 +729,10 @@
       "sha256": "6b2217349a45bc02d89af76de11efbc645fcba259b24e871e14701c77bfed2f3"
     },
     {
+      "path": "web/font-audit.js",
+      "sha256": "6765fa960c473bfa94d72c8ae18cb7e5531f19f4ca4555fd2b7e2da7186c25bb"
+    },
+    {
       "path": "web/icons.js",
       "sha256": "bbe49ef102577849e8b057219479186258b84f3a46c2700918be49998f02cc24"
     },
@@ -734,7 +746,7 @@
     },
     {
       "path": "web/native-smoke.js",
-      "sha256": "646c562f729592829925d586202a6d537b529c327f39a44d86b4221c237060a5"
+      "sha256": "0f8fcb62f8dc5e22de51b118c24bb7d253c1c695affab942b809ba253bed3ec8"
     },
     {
       "path": "web/preview-bridge.js",
@@ -742,7 +754,7 @@
     },
     {
       "path": "web/radio.css",
-      "sha256": "ee004e16cd8664cd1f579398bd7cc806e01b9eb131896add1ebe17d22fb93894"
+      "sha256": "0a0ddc74f5f23a9426bbb9a6af0beae991dd952f4fb5848cfce8d567ab1fa9e6"
     },
     {
       "path": "web/radio.d.ts",
@@ -754,7 +766,7 @@
     },
     {
       "path": "web/startup-probe.js",
-      "sha256": "a3b7b8143af3f66dae393eba1708145a7356272b391c33a887b4b504e4dc28f3"
+      "sha256": "f6b7db14612ca66a1779dce6ddb14e235fd8baa9e96271e09bf14df0248ad4a3"
     },
     {
       "path": "web/vendor/LICENSE",
@@ -1129,12 +1141,12 @@
       "sha256": "8127b2eb53821b0494b0400bb965c3c0f826f244cbc178d28921086d604166f2"
     }
   ],
-  "sourceFingerprint": "bda5a5abf72adafebc440b6947f8816dceb1e8ff53c9b7469bd2398063da4c37",
+  "sourceFingerprint": "50014435d492169cae089e53e3a941ced11669d41605fca06d70b372536fa62a",
   "binary": {
     "path": "ae-strom.exe",
     "buildPath": "target/release/ae-strom.exe",
-    "bytes": 18592256,
-    "sha256": "33010a8ffe3ce1d845807337967f71aef2acedee293312f61b44a41e9e527b32",
+    "bytes": 18593280,
+    "sha256": "3a2201d8558b8c2aa152533cf42cae0c4aa4485216ec010c818b19e8abb84807",
     "features": [
       "custom-protocol",
       "live-audio"
@@ -1146,8 +1158,8 @@
     "autoplay": false
   },
   "checks": {
-    "browserTests": 72,
-    "syntaxFiles": 26,
+    "browserTests": 76,
+    "syntaxFiles": 28,
     "strictTypes": true,
     "vendorRuntimeFiles": 6,
     "vendorDeclarations": 85,
@@ -1169,7 +1181,7 @@
     "originalProjectUnchanged": true,
     "unchangedRustDomainFilesAfterRename": 19,
     "rustLibraryUnit": 36,
-    "nativeFakeChecks": 35,
+    "nativeFakeChecks": 36,
     "userHeardSound": null,
     "privateProfileTransferredWithAuthorization": true,
     "privateProfilesIncludedInGit": false,
@@ -1211,8 +1223,15 @@
     "currentUiAudioStarted": false,
     "unchangedRustSource": true,
     "currentUiRustUnitRerun": false,
-    "currentUiReleaseBuild": true
+    "currentUiReleaseBuild": true,
+    "fontAuditGroups": 21,
+    "standardFont": "Noto Sans variable, normal 100-900",
+    "appFontSize": "12px",
+    "nativeEmbeddedFontBytes": 918168,
+    "actualCustomFontConfirmedOnWindows": true,
+    "nativePopupFontMeasured": false,
+    "macOSFontAuditExecuted": false
   },
   "privateProfilesIncluded": false,
-  "generatedUtc": "2026-11-03T22:07:21.002561+00:00"
+  "generatedUtc": "2026-11-03T23:16:34.274248+00:00"
 }

@@ -1,6 +1,6 @@
 # Single full executable verification
 
-Æ Strøm 0.1.0, Tauri 2.12.1 and pinned published taet-ui 0.6.0-rc.4. Canonical executable: **ae-strom.exe in the project root**, the complete application, **18592256 bytes**, SHA256 **33010a8ffe3ce1d845807337967f71aef2acedee293312f61b44a41e9e527b32**. The same full binary is at target/release/ae-strom.exe. No launcher is required.
+Æ Strøm 0.1.0, Tauri 2.12.1 and pinned published taet-ui 0.6.0-rc.4. Canonical executable: **ae-strom.exe in the project root**, the complete application, **18593280 bytes**, SHA256 **3a2201d8558b8c2aa152533cf42cae0c4aa4485216ec010c818b19e8abb84807**. The same full binary is at target/release/ae-strom.exe. No launcher is required.
 
 ## Behavior and data
 
@@ -14,9 +14,9 @@ Cargo's project release build shares that same project-root profile when source 
 
 | Gate | Result |
 | --- | --- |
-| Browser | **72/72**, DPR 1/1.5; strict types, 26 JS syntax files and pinned vendor integrity PASS |
+| Browser | **76/76**, DPR 1/1.5; strict types, 28 JS syntax files and pinned vendor integrity PASS |
 | Rust | Earlier **36 unit + 7 doc** and Clippy cover the unchanged Rust source; fmt and locked offline application release build rerun for this UI change |
-| Native explicit fake | **35/35** final Tauri/WebView2 UI checks |
+| Native explicit fake | **36/36** final Tauri/WebView2 UI checks |
 | Native single EXE | **7 checks × 2 starts**, default live/stopped, portable profile, embedded fonts/assets and persisted settings |
 | Restart | First run loaded volume 17 and saved 18; second loaded 18 and saved 19; station banks/custom EQ retained |
 | No autoplay | Native startup snapshot stayed stopped/requestedPlaying=false; engine diagnostics inactive; startup probes never requested Play |
@@ -37,3 +37,7 @@ Ignored local-data/followup contains single-tests-final.log, single-doc-final.lo
 The centered static -= Æ Strøm =- label appears only when stopped without an error. Play/Stop, stopped station selection, stale metadata, connection/reconnection/error priority, full-title copy, moving long titles, compact/drafts and forced 70 px ticker clipping pass at browser DPR 1/1.5. Native fake start/Stop checks and two default-live/stopped starts verify the same branding. Only app JavaScript/scoped CSS and acceptance harnesses changed; framework/vendor and Rust domain/host/config sources are byte-identical to the previous source record.
 
 The optional gradient was trialed only in a synthetic preview, not shipped. Current evidence is under local-data/idle-brand-* and idle-brand-preview; screenshots at 100/150% were inspected. No personal-profile read/write or live audio was performed in this iteration. Earlier live backend evidence above is historical, with the same unchanged audio engine. Physical OS input/IME, native 100%, actual live metadata/listening and other platform limits remain as stated. The prior EXE and replaced reference PNGs are preserved in ignored idle-brand rollback.
+
+## Current font audit
+
+All app typography declarations now use the standard Tæt tokens, including native option DOM and hidden status. Actual custom-font use is confirmed by Chromium and loaded font/resource metadata in a copied single EXE on Windows. See FONT_AUDIT.md for the precise face/source, fallback and native select/title-tooltip exceptions. Mac/WKWebView was not executed and parity is not claimed. The current audit did not access personal config or start audio; the existing external player kept running.

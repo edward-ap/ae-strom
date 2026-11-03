@@ -1,3 +1,4 @@
+import { inspectTypography } from './font-audit.js';
 /** Programmatic native IPC smoke. This is not native pointer/clipboard acceptance. */
 export async function runNativeSmoke(ui, bridge) {
  const checks=[], initial=await bridge.getSnapshot();
@@ -6,6 +7,8 @@ export async function runNativeSmoke(ui, bridge) {
   check('Æ Strøm document identity',document.title==='Æ Strøm',{});
   check('startup reveal handshake completed',window.__AE_STROM_READY__===true,{});
   check('standard bundled font loaded',document.fonts.check('12px "Noto Sans"','Æ Strøm Жж')&&[...document.fonts].some(f=>f.family.includes('Noto Sans')&&f.status==='loaded')&&[...document.querySelectorAll('.station-row input,.station-row select,.radio-ticker,.player-strip button')].every(e=>getComputedStyle(e).fontFamily.includes('Noto Sans')&&getComputedStyle(e).fontSize==='12px'),{});
+  const typography=inspectTypography();
+  check('complete app typography and bundled face',typography.standard&&typography.loaded&&typography.nativeSelectCount===11,{typography});
   check('synthetic backend',initial.mode==='fake',{mode:initial.mode});
   if(initial.mode!=='fake')throw Error('Smoke refuses live backend');
   check('startup geometry',document.querySelector('.player-strip').getBoundingClientRect().height===36,{});
@@ -82,6 +85,6 @@ export async function runNativeSmoke(ui, bridge) {
   await new Promise(requestAnimationFrame);
   check('Stop restores idle brand',document.querySelector('.radio-ticker .dui-scrolling-label__text').textContent==='-= Æ Strøm =-'&&document.querySelector('.radio-ticker').classList.contains('radio-ticker--idle'),{});
   check('stop snapshot',!final.requestedPlaying,{generation:final.generation});
-  await window.__TAURI__.core.invoke('save_ui_evidence',{body:JSON.stringify({kind:'programmatic native fake-backend smoke',userInput:false,audio:false,checks,pass:checks.every(c=>c.pass),snapshot:{mode:final.mode,generation:final.generation,status:final.status}},null,2)});
+  await window.__TAURI__.core.invoke('save_ui_evidence',{body:JSON.stringify({kind:'programmatic native fake-backend smoke',userInput:false,audio:false,typography,checks,pass:checks.every(c=>c.pass),snapshot:{mode:final.mode,generation:final.generation,status:final.status}},null,2)});
  } catch(error) { await window.__TAURI__.core.invoke('save_ui_evidence',{body:JSON.stringify({pass:false,error:String(error),checks},null,2)}); }
 }
