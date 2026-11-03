@@ -414,7 +414,7 @@
     },
     {
       "path": ".gitignore",
-      "sha256": "89ac24acfc9bd7d6e8ebcd2ace31799d27f389a42e4e22637ce5c2c5d797cb79"
+      "sha256": "f1f9d88d4f43788b4f77a2e74425298af125d9aec8cc2c000fd73c0b99cd0e60"
     },
     {
       "path": "AGENTS.md",
@@ -434,7 +434,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "cea96c56a02f4954de3a8efe4126a589c17d1f4764b41169aa3858a16ab68575"
+      "sha256": "9351c39b05777f34c5a0c1ba9325a984d664dff8d13248a51eaaaa48dfc27ef0"
     },
     {
       "path": "browser-tests/branding.spec.js",
@@ -507,6 +507,22 @@
     {
       "path": "docs/VERIFICATION.md",
       "sha256": "6331d19c2b992b9edd3e88ebde269895ac45192d279f211228facd2a8f28b4ce"
+    },
+    {
+      "path": "docs/images/compact.png",
+      "sha256": "a450d7d009fb329415450375869b641efd29a53a5cfce79a50f210e696f325fd"
+    },
+    {
+      "path": "docs/images/equalizer.png",
+      "sha256": "a528e1be58e1929529c6a2bd98e937f58b2284267b2a10c85d70883e201e0da6"
+    },
+    {
+      "path": "docs/images/player.png",
+      "sha256": "51bed6ec7faa28b608815cf597d90561b658c76becceee1ac3bda8112aa8949d"
+    },
+    {
+      "path": "docs/images/settings.png",
+      "sha256": "08841904308aa2eb1faf88e9ad13174a2623a945f384cf57b135e514e0e6e9f8"
     },
     {
       "path": "examples/profile-verify.rs",
@@ -1109,7 +1125,7 @@
       "sha256": "8127b2eb53821b0494b0400bb965c3c0f826f244cbc178d28921086d604166f2"
     }
   ],
-  "sourceFingerprint": "db415924c80428476ee31b932609cd118401d1fd8e9ca5849cc46c52398ad961",
+  "sourceFingerprint": "df76d08122ed23e3002ea48d148beaa927a732b45e5deab1d7edfe3f2381c84e",
   "binary": {
     "path": "ae-strom.exe",
     "buildPath": "target/release/ae-strom.exe",
@@ -1161,8 +1177,29 @@
     "autoplay": false,
     "profileSaveRestart": true,
     "personalProfileUnchanged": true,
-    "personalUrlsEmbedded": false
+    "personalUrlsEmbedded": false,
+    "readmeRelativeLinks": true,
+    "referenceScreenshotsSynthetic": true,
+    "referenceScreenshotDimensions": {
+      "player.png": [
+        725,
+        36
+      ],
+      "compact.png": [
+        102,
+        36
+      ],
+      "settings.png": [
+        725,
+        258
+      ],
+      "equalizer.png": [
+        725,
+        257
+      ]
+    },
+    "runtimeSourceAndExeUnchangedDuringDocsCleanup": true
   },
   "privateProfilesIncluded": false,
-  "generatedUtc": "2026-11-03T20:01:22.288801+00:00"
+  "generatedUtc": "2026-11-03T20:38:04.291121+00:00"
 }

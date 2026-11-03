@@ -29,6 +29,32 @@ live-audio and custom-protocol are default features. The build output is target/
 
 Browser preview is `npm run preview` and stays synthetic. `scripts/native-smoke.ps1` runs explicit --fake checks in a fresh profile. `scripts/single-exe-smoke.ps1` copies only the full EXE into an isolated portable folder and verifies default live/stopped mode plus save/restart without playing audio. Its internal startup-smoke flag accepts only a marked synthetic fixture profile.
 
+## Ultra-compact mode
+
+Click the **double-chevron button to the left of Play/Stop** to collapse the same player window to **102 × 36 logical pixels**. Only the expand chevron, Play/Stop button and five-band spectrum remain visible. Physical pixel dimensions depend on Windows display scaling.
+
+Playback continues in the same Rust session. The current station, volume/mute, EQ settings and unsaved editor drafts are retained; collapsing does not stop or reconnect the stream. Click the chevron again to restore the full player and its previous panel. Settings, EQ and the remaining controls are available after expansion. The compact background/spectrum can still be used to drag the window.
+
+## Screenshots
+
+These reference images use synthetic preview data, with no personal station list. Replace the files under **docs/images** to update the README images; keep the same names so the relative links continue to work.
+
+Normal player:
+
+![Æ Strøm normal player](docs/images/player.png)
+
+Ultra-compact mode (102 × 36 logical pixels):
+
+![Æ Strøm ultra-compact mode](docs/images/compact.png)
+
+Station settings:
+
+![Æ Strøm station settings](docs/images/settings.png)
+
+Equalizer:
+
+![Æ Strøm equalizer](docs/images/equalizer.png)
+
 ## Interface and framework
 
 - A–Z banks with ten slots; active playback and Settings browsing are separate.

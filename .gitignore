@@ -22,3 +22,9 @@
 **/native-ui.json
 /ae-strom-player.exe
 /ae-strom.exe
+
+# Editor/OS thumbnails and debug symbols
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.pdb
