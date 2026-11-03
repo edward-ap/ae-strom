@@ -1,0 +1,8 @@
+export interface Station { name:string;url:string;eq:string;metadataType:string;metadataUrl:string }
+export interface EqPreset { name:string;preamp:number;bands:number[];builtin:boolean }
+export interface Snapshot {revision:number;generation:number;mode:'fake'|'live';status:'stopped'|'connecting'|'playing'|'reconnecting'|'error';requestedPlaying:boolean;fullTitle:string;displayTitle:string;activeBank:number;activeSlot:number;volume:number;muted:boolean;stations:Station[];eqPresets:EqPreset[];eq:{name:string;preamp:number;bands:number[];dirty:boolean;canSave:boolean;canDelete:boolean};error:string|null}
+export type Action = {type:'setPlaying';playing:boolean}|{type:'setVolume';volume:number}|{type:'setMuted';muted:boolean}|{type:'selectStation';bank:number;slot:number}|{type:'setStationUrl';bank:number;slot:number;url:string}|{type:'assignStationEq';bank:number;slot:number;name:string}|{type:'selectEqPreset'|'saveEqPreset'|'deleteEqPreset';name:string}|{type:'setEq';preamp:number;bands:number[]};
+export interface Layout { compact:boolean;width:number;height:number }
+export interface Spectrum {generation:number;levels:number[];powered:boolean}
+export interface UiReadyInfo {width:number;height:number;fontLoaded:boolean;background:string}
+export interface Bridge {uiReady(info:UiReadyInfo):Promise<unknown>;getSnapshot():Promise<Snapshot>;dispatch(action:Action):Promise<Snapshot>;subscribeState(fn:(state:Snapshot)=>void):(()=>void)|Promise<()=>void>;subscribeSpectrum(fn:(event:Spectrum)=>void):(()=>void)|Promise<()=>void>;setWindowLayout(layout:Layout):Promise<unknown>;startDrag():Promise<unknown>;copyTitle():Promise<unknown>;shutdown():Promise<unknown>}

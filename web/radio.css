@@ -1,0 +1,125 @@
+html,body{margin:0;background:#000;color:#e9e9ed;font:11px "Noto Sans",sans-serif;overflow:hidden}*{box-sizing:border-box}#radio{width:max-content;max-width:100vw}.radio-owner{width:725px!important;max-width:none;background:#000}.radio-owner{padding:0!important}.player-strip{height:36px;min-height:36px;padding:4px!important}.player-strip{display:flex;align-items:center;gap:4px;height:28px;padding:0!important}.player-strip button{min-width:26px;width:26px;height:26px;min-height:26px;padding:0!important;font-size:14px}.player-strip [data-control="collapse"]{width:18px;min-width:18px}.player-strip [data-control="equalizer"]{font-size:10px}.radio-spectrum{width:42px!important;min-width:42px;height:24px!important;cursor:move}.radio-ticker{min-width:0;flex:1;height:24px;line-height:24px;overflow:hidden;color:#d9ecdc}.channel-indicator{display:flex;align-items:center;justify-content:space-around;gap:4px;border:1px solid #62646e;border-radius:2px;height:25px;min-width:49px;width:49px;padding:2px 4px;color:#e0efd9}.channel-slot{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border:1px solid #777b82;border-radius:50%;font-size:10px}.channel-flash{background:#405a3e}.radio-volume{width:83px!important;min-width:83px;height:24px!important}.radio-volume .dui-editor__label{display:none}.settings-panel,.eq-panel{border-top:1px solid #43454e}.bank-strip{display:flex;gap:2px;justify-content:space-between;padding:0!important}.bank-strip button{min-width:22px;width:22px;height:23px;min-height:23px;padding:0!important;font-size:10px}.bank-strip button[aria-pressed="true"]{background:#3c603e;border-color:#89a878}.bank-info{font-size:10px;color:#9ba09f;margin:6px 0}.station-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:0!important}.station-column{min-width:0}.station-column{display:flex;flex-direction:column;gap:5px;padding:0!important}.station-row{min-width:0}.station-row .dui-form__cols{display:grid!important;grid-template-columns:25px minmax(0,1fr) 70px;gap:4px}.station-row button{width:25px;min-width:25px;height:26px;min-height:26px;padding:0!important;border-radius:50%}.station-row button[aria-checked="true"]{color:#a8e98a;border-color:#88b66f;background:#354936}.station-row .dui-editor,.station-row .dui-text-field,.station-row .dui-select-input{min-width:0;width:100%}.station-row input{min-width:0;width:100%;height:26px;font-size:10px;padding:3px 5px!important}.station-row .dui-editor__label:empty{display:none}.station-row input::selection{background:#0c86d8;color:white}.panel-hint{font-size:10px;color:#9ba09f;margin-top:7px}.eq-tools .dui-form__cols{display:grid!important;grid-template-columns:180px minmax(0,1fr) 60px 60px;gap:7px}.eq-sliders{display:flex;justify-content:space-between;gap:4px;padding:12px 0 0!important}.eq-sliders .dui-trackbar{height:188px!important;width:54px!important;min-width:0}.eq-sliders .dui-trackbar__label{font-size:10px;text-align:center}.radio-status{padding:4px 8px;color:#ffc8a8;font-size:10px}.compact.radio-owner{width:max-content!important}.compact .player-strip{width:max-content}.compact .player-strip{width:max-content}.compact .radio-spectrum{width:42px!important}button:focus-visible,input:focus-visible,[role="slider"]:focus-visible{outline:2px solid #a3c6ff;outline-offset:-2px}.dui-panel,.dui-form{min-width:0}
+.player-strip{display:flex;align-items:center;gap:4px;height:36px;padding:4px!important}.bank-strip{display:flex}.station-columns{display:grid}.station-column{display:flex}.eq-sliders{display:flex}.radio-owner.compact{max-width:none}.radio-volume .dui-trackbar__label:empty{display:none}.station-row .dui-text-field__label:empty{display:none}.eq-tools .dui-text-field__label:empty{display:none}.eq-sliders .dui-trackbar__input{height:140px}.eq-sliders .dui-trackbar__content{min-height:0}.eq-sliders .dui-trackbar__label{display:block!important}
+
+.radio-volume,.radio-volume *{min-width:0!important}.radio-volume .dui-trackbar__content,.radio-volume .dui-trackbar__scale,.radio-volume .dui-trackbar__slider{width:100%;max-width:100%}.radio-volume .dui-trackbar__input{width:100%;min-width:0!important}.radio-volume .dui-trackbar__label,.radio-volume .dui-trackbar__value,.radio-volume .dui-trackbar__range-label{display:none!important}
+
+
+.radio-volume,.radio-volume .dui-trackbar__content,.radio-volume .dui-trackbar__scale,.radio-volume .dui-trackbar__slider{grid-template-columns:minmax(0,1fr)!important}.radio-volume .dui-trackbar__input{max-width:83px!important}
+
+
+.station-row .dui-text-field,.eq-tools .dui-text-field{grid-template-columns:minmax(0,1fr)!important;gap:0!important}.station-row .dui-text-field__input,.eq-tools .dui-text-field__input{grid-column:1;width:100%!important}.eq-sliders .dui-trackbar{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:18px minmax(0,1fr)!important}.eq-sliders .dui-trackbar__label{grid-column:1!important;grid-row:1!important;visibility:visible!important}.eq-sliders .dui-trackbar__content{grid-column:1!important;grid-row:2!important}.eq-sliders .dui-trackbar__value{font-size:10px}.dui-button{color:#e2e6ea;background:#30323a;border:1px solid #555863;border-radius:2px}.dui-button:hover{background:#41454f}.dui-text-field__input{color:#e4e8ed;background:#292c33;border:1px solid #555863;border-radius:2px;font-family:inherit}.dui-text-field__input:focus{border-color:#82b4d9}.eq-tools .dui-text-field__label:empty{display:none}.eq-sliders .dui-trackbar__label{color:#b9c1c9}.dui-button:disabled{opacity:.45}
+
+
+.radio-owner [hidden]{display:none!important}.radio-owner .dui-button:focus-visible{outline:2px solid #a3c6ff;outline-offset:-2px}
+
+
+/* App toolbar polish: fixed 26px targets, larger vectors, independent states. */
+.radio-owner .player-strip button{display:inline-flex;align-items:center;justify-content:center;gap:0;line-height:1;flex:0 0 26px;color:#e2e6ea;background:#000;border:1px solid transparent;border-radius:2px}
+.radio-owner .player-strip [data-control="collapse"]{flex-basis:18px}
+.radio-owner .player-strip button svg{display:block;width:18px;height:18px;flex-shrink:0;pointer-events:none}
+.radio-owner .player-strip [data-control="collapse"] svg{width:13px;height:16px}
+.radio-owner .dui-button:hover:not(:disabled),.radio-owner .player-strip button:hover:not(:disabled){background:#41454f;border-color:#7b8491}
+.radio-owner .dui-button:active:not(:disabled),.radio-owner .player-strip button:active:not(:disabled){background:#505866}
+.radio-owner .player-strip [data-control="settings"][aria-pressed="true"],
+.radio-owner .player-strip [data-control="equalizer"][aria-pressed="true"]{color:#e7f7e8;background:#36503f;border-color:#91b38d}
+.radio-owner .player-strip [data-control="settings"][aria-pressed="true"]:hover,
+.radio-owner .player-strip [data-control="equalizer"][aria-pressed="true"]:hover{background:#42614d}
+.radio-owner .player-strip [data-control="mute"][aria-pressed="true"]{color:#ffe0a3;background:#57472f;border-color:#b69a62}
+.radio-owner .player-strip [data-control="mute"][aria-pressed="true"]:hover{background:#665337}
+.radio-owner .player-strip [data-control="play"][aria-pressed="true"]{color:#dbf3df;background:#30483a;border-color:#83a18a}
+.radio-owner .player-strip [data-control="play"][aria-pressed="true"]:hover{background:#3b5946}
+.radio-owner .player-strip [data-control="close"]:hover:not(:disabled){color:#fff;background:#794049;border-color:#b76a77}
+.radio-owner .player-strip button:focus-visible{outline:2px solid #a3c6ff;outline-offset:-2px}
+.radio-owner .dui-button:disabled{opacity:1;color:#8d949e;background:#292c33;border-color:#454850;cursor:default}
+.radio-owner .eq-sliders .dui-trackbar__value{color:#d0d7df}
+
+
+/* Pass two: continuous radio display, black chrome and borderless targets. */
+.radio-owner .player-strip{background:#000}
+.radio-display{display:flex;align-items:center;gap:4px;flex:1;min-width:0;height:26px;background:#003D66;padding:0!important}
+.radio-ticker{height:26px;line-height:26px;background:transparent}
+.channel-indicator{height:26px;border-color:#fff;background:transparent}
+.channel-slot{border-color:#fff}
+.channel-indicator.channel-flash{background:transparent}
+.channel-indicator.channel-flash .channel-slot{color:#003D66;background:#fff}
+.compact .radio-display{flex:0 0 42px;width:42px;min-width:42px;gap:0}
+.radio-owner button{border-color:transparent!important}
+.radio-owner .player-strip button:not([aria-pressed="true"]){background:#000}
+.radio-owner .player-strip button:hover:not(:disabled):not([aria-pressed="true"]){background:#242424}
+.radio-owner .player-strip button:active:not(:disabled):not([aria-pressed="true"]){background:#3a3a3a}
+.settings-panel,.eq-panel{background:#000}
+.radio-volume input[type="range"]{accent-color:#909090}
+.radio-volume input[type="range"]::-webkit-slider-runnable-track{background:#888}
+.radio-volume input[type="range"]::-moz-range-track{background:#888}
+.radio-volume input[type="range"]::-moz-range-progress{background:#888}
+
+
+/* Settings structure and drag affordances; toolbar remains borderless. */
+.player-strip{cursor:move;user-select:none;-webkit-user-select:none}
+.player-strip button{cursor:pointer}
+.radio-volume,.radio-volume *{cursor:default}
+.station-header{height:18px;min-height:18px;padding:0!important}
+.station-header .dui-form__cols,.station-row .dui-form__cols{display:grid!important;grid-template-columns:26px minmax(0,1fr) 70px;gap:4px}
+.station-header .column-label{height:18px;line-height:18px;min-width:0;font-size:10px;color:#b9c1c9;padding:0 5px}
+.station-header .column-key{text-align:center;padding:0}
+.settings-panel .bank-strip{margin-top:8px}
+.radio-owner .settings-panel .bank-strip button{flex:0 0 24px;width:24px!important;min-width:24px!important;max-width:24px;height:24px;min-height:24px;max-height:24px;display:inline-flex;align-items:center;justify-content:center;padding:0!important;line-height:1;border:1px solid #727780!important;border-radius:4px}
+.radio-owner .settings-panel .station-row button{width:26px;min-width:26px;height:26px;min-height:26px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #727780!important;border-radius:50%}
+
+
+/* App-owned square affordance on the unchanged Dense native select.
+   24px field = 24px trailing area; one reserve plus a 2px text gap.
+   appearance:none removes the browser arrow, not the native select/popup. */
+.radio-owner .settings-panel .station-row .dui-select-input{--radio-select-height:24px;position:relative}
+.radio-owner .settings-panel .station-row select.dui-select-input__select{height:var(--radio-select-height);appearance:none;-webkit-appearance:none;padding-inline-end:calc(var(--radio-select-height) + 2px - 1px)}
+.radio-owner .settings-panel .station-row .dui-select-input::after{content:"";position:absolute;inset-inline-end:0;top:0;width:var(--radio-select-height);height:var(--radio-select-height);pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='m1 3 4 4 4-4' fill='none' stroke='%23e4e8ed' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/10px 10px no-repeat}
+.radio-owner .settings-panel .bank-strip button[aria-pressed="true"],
+.radio-owner .settings-panel .station-row button[aria-checked="true"]{background:#003D66;color:#fff}
+.radio-owner .settings-panel .bank-strip button[aria-pressed="true"]:hover,
+.radio-owner .settings-panel .station-row button[aria-checked="true"]:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+
+
+/* EQ pass: keep stock Tæt range/grip behavior; all geometry is app-scoped. */
+.radio-owner .station-header .dui-form__cols,.radio-owner .station-row .dui-form__cols{grid-template-columns:26px minmax(0,1fr) 110px}
+.radio-owner .eq-sliders{--radio-eq-track-border:1px;position:relative;gap:4px;padding:20px 0 0!important;align-items:flex-start}
+.radio-owner .eq-sliders .dui-trackbar{position:relative;flex:0 0 54px;height:160px!important;grid-template-rows:140px 18px!important;row-gap:2px}
+.radio-owner .eq-sliders .dui-trackbar[data-dui-control-id="eqBand0"]{margin-inline-end:10px}
+.radio-owner .eq-sliders .dui-trackbar__content{grid-column:1!important;grid-row:1!important;display:block;position:relative;height:140px;min-height:140px}
+.radio-owner .eq-sliders .dui-trackbar__scale{height:140px;min-height:140px;grid-template-columns:1fr;grid-template-rows:140px;row-gap:0}
+.radio-owner .eq-sliders .dui-trackbar__slider{grid-column:1;grid-row:1;height:140px;min-height:140px;min-width:0}
+.radio-owner .eq-sliders .dui-trackbar__input{height:140px}
+.radio-owner .eq-sliders .dui-trackbar__label{grid-column:1!important;grid-row:2!important;height:18px;line-height:18px;color:#cbd0d8;text-align:center}
+.radio-owner .eq-sliders .dui-trackbar__range-label,.radio-owner .eq-sliders .dui-trackbar__ticks{display:none}
+.radio-owner .eq-sliders .dui-trackbar__value{position:absolute;left:50%;top:-20px;transform:translateX(-50%);width:54px;height:18px;line-height:18px;min-width:0;padding:0;text-align:center;font-size:10px;color:#eef1f5;visibility:hidden;pointer-events:none}
+.radio-owner .eq-sliders .dui-trackbar:is(:hover,:focus-within,[data-dragging="true"]) .dui-trackbar__value{visibility:visible}
+.radio-owner .eq-sliders .dui-trackbar{z-index:1}
+.radio-owner .eq-grid{position:absolute;inset:0;padding:0!important;pointer-events:none;z-index:0}
+.radio-owner .eq-grid-line{position:absolute;height:1px!important;min-height:0;padding:0!important;transform:translateY(-50%);background:#383b40}
+.radio-owner .eq-grid-line--major{height:2px!important;background:#686d76}
+.radio-owner .eq-grid-label{position:absolute;top:50%;transform:translate(-50%,-50%);width:36px;min-height:14px;height:14px;line-height:14px;background:#000;color:#bfc6d0;text-align:center;font-size:9px;white-space:nowrap}
+.radio-owner :is(.radio-volume,.eq-sliders .dui-trackbar)[data-thumb-shape="grip"]{--dui-thumb-background:repeating-linear-gradient(90deg,transparent 0 3px,#b1b6bd 3px 4px) center/12px 8px no-repeat #33363c}
+.radio-owner .eq-sliders .dui-trackbar[data-thumb-shape="grip"]{--dui-thumb-background:repeating-linear-gradient(0deg,transparent 0 3px,#b1b6bd 3px 4px) center/8px 12px no-repeat #33363c}
+.radio-owner :is(.radio-volume,.eq-sliders) input[type="range"]::-webkit-slider-runnable-track{background:#888;border-color:#888}
+.radio-owner :is(.radio-volume,.eq-sliders) input[type="range"]::-moz-range-track,.radio-owner :is(.radio-volume,.eq-sliders) input[type="range"]::-moz-range-progress{background:#888;border-color:#888}
+.radio-owner :is(.radio-volume,.eq-sliders) input[type="range"]::-webkit-slider-thumb{border-color:#9aa2ad}
+.radio-owner :is(.radio-volume,.eq-sliders) input[type="range"]::-moz-range-thumb{border-color:#9aa2ad}
+.radio-owner :is(.radio-volume,.eq-sliders) input[type="range"]:focus-visible{outline:2px solid #a3c6ff;outline-offset:2px}
+
+.radio-owner .eq-sliders input[type="range"]::-webkit-slider-runnable-track{border-width:var(--radio-eq-track-border)}
+.radio-owner .eq-sliders input[type="range"]::-moz-range-track{border-width:var(--radio-eq-track-border)}
+
+
+/* Compact channel frame: stable width for every bank/slot; reclaimed space flexes to ticker. */
+.radio-owner .channel-indicator{flex:0 0 40px;width:40px;min-width:40px;max-width:40px;justify-content:flex-start;gap:2px;padding:2px 2px 2px 3px}
+.radio-owner .channel-indicator>span:first-child{flex:0 0 14px;width:14px;text-align:center;white-space:nowrap}
+.radio-owner .channel-slot{flex:0 0 17px}
+
+
+/* Error feedback stays inside the ticker and accessible live region, never a row. */
+.radio-owner .radio-status{position:absolute!important;left:0;top:0;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* Match the standard bundled Tæt text throughout; geometry and SVG targets stay fixed. */
+html,body{font:var(--dui-font-size)/var(--dui-line-height) var(--dui-font-family)}
+.radio-owner,.radio-owner :is(button,input,select,textarea,.radio-ticker,.channel-slot,.column-label,.eq-grid-label){font-family:var(--dui-font-family);font-size:var(--dui-font-size)}
+.radio-owner .station-row input,.radio-owner .player-strip button,.radio-owner .bank-strip button,.radio-owner .eq-sliders :is(.dui-trackbar__label,.dui-trackbar__value){font-family:var(--dui-font-family);font-size:var(--dui-font-size)}
+.radio-owner .channel-slot{line-height:1}
+.radio-owner .eq-grid-label{width:44px;height:18px;line-height:18px}

@@ -1,0 +1,46 @@
+[package]
+name = "ae-strom"
+version = "0.1.0"
+edition = "2021"
+publish = false
+default-run = "ae-strom"
+
+[lib]
+name = "ae_strom"
+path = "src/lib.rs"
+
+[dependencies]
+tauri = { version = "=2.12.1", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+log = "0.4"
+env_logger = "0.11"
+once_cell = "1.20"
+cpal = { version = "=0.15.3", optional = true }
+symphonia = { version = "=0.5.5", features = ["aac", "mp3", "flac", "ogg", "isomp4"], optional = true }
+biquad = { version = "=0.4.2", optional = true }
+realfft = { version = "3", optional = true }
+num-complex = { version = "0.4", optional = true }
+reqwest = { version = "=0.12.28", default-features = false, features = ["native-tls", "hickory-dns"], optional = true }
+tokio = { version = "1", features = ["rt", "time", "macros", "net"], optional = true }
+ringbuf = { version = "0.3", optional = true }
+rubato = { version = "0.12", optional = true }
+url = "2"
+html-escape = { version = "0.2", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+clipboard-win = "=5.4.1"
+
+[build-dependencies]
+tauri-build = "=2.7.1"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+live-audio = ["dep:cpal", "dep:symphonia", "dep:biquad", "dep:realfft", "dep:num-complex", "dep:reqwest", "dep:tokio", "dep:ringbuf", "dep:rubato", "dep:html-escape"]
+
+[[bin]]
+name = "ae-strom-live-check"
+path = "src/bin/live-check.rs"
+required-features = ["live-audio"]

@@ -1,0 +1,11 @@
+.dui-spectrum {
+  --dui-spectrum-background: var(--dui-color-surface-strong, #081e28);
+  --dui-spectrum-idle: var(--dui-color-border, #163b46);
+  --dui-spectrum-low: #00a99d;
+  --dui-spectrum-mid: #34cbbd;
+  --dui-spectrum-high: #8ae1d4;
+  --dui-spectrum-peak: #f35c65;
+  --dui-spectrum-line: var(--dui-color-accent-bg, #34cbbd);
+  position: relative; min-width: 1px; min-height: 1px; overflow: hidden;
+}
+.dui-spectrum > canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }

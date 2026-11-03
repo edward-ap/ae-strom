@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.ico -text
+*.woff2 -text
+web/vendor/taet-ui.js -text
+web/vendor/taet-ui.css -text
+web/vendor/LICENSE -text
+web/vendor/THIRD_PARTY_NOTICES.md -text
+web/vendor/fonts/* -text
+web/vendor/types/** -text
