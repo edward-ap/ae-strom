@@ -414,7 +414,7 @@
     },
     {
       "path": ".gitignore",
-      "sha256": "3004d8929f994328b1dafc8682147024729b4b45087e06e14c01553b5132209a"
+      "sha256": "d26bff214789b107d2928c7f73bf6206a7b5124fce62ea5413ab85364cb7fe21"
     },
     {
       "path": "AGENTS.md",
@@ -426,7 +426,7 @@
     },
     {
       "path": "Cargo.toml",
-      "sha256": "dfd59fd98e65056725b7a0f3842cb93f90c4a661c263d1c8ddbf3b2a5fce7ed3"
+      "sha256": "4851a1a05a35cef5795ff22d9e77029991049e8a4309a6997a57d71bc51949d6"
     },
     {
       "path": "LICENSE",
@@ -434,7 +434,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "c63af0d1a28a9c971e551c7affb376c559c5a8e7f768b77a04bcab235480dfb4"
+      "sha256": "459338f0dbf06670a9509a1ada1dd000aeb41b653831b3d042e9d0b004b3c5c3"
     },
     {
       "path": "browser-tests/branding.spec.js",
@@ -486,15 +486,15 @@
     },
     {
       "path": "docs/BUILD.md",
-      "sha256": "8c70d8416ae79f8be8ead5655e571d3a60c09e1f46cfc9b6252d0c8cd25e3019"
+      "sha256": "92358e2909aec1a49ab482ec5e7a64fa732d5235ecd461823afb96c7e4789b3e"
     },
     {
       "path": "docs/CONSUMER_NOTES.md",
-      "sha256": "fe6bbba023a12b4f1d8bbe7bfcc4e637440d9ba10a980ae7e37f13c5b97b31a4"
+      "sha256": "d70d5434dede2b2ca3c9c9d6274e621b2adb8318071747451c9796f122202df0"
     },
     {
       "path": "docs/MANUAL_ACCEPTANCE.md",
-      "sha256": "2a4129710ed4f767bc008f8164065101e58df9422ae57e3414f1d0147f88c1d9"
+      "sha256": "5829694fb1d5e496642e57d5a6ae1c27abcabbf8827ea8179bc06c1a81536e80"
     },
     {
       "path": "docs/MIGRATION_REPORT.md",
@@ -506,7 +506,11 @@
     },
     {
       "path": "docs/VERIFICATION.md",
-      "sha256": "7add1eb0452ef9fca77d9499e3ccd32e29eabd9e6bb0df090fb05ec2b7f89b7e"
+      "sha256": "6db4a6e82ae22df7c74b5514496845c29d39155ecc63ffbadaab33178ddb73f0"
+    },
+    {
+      "path": "examples/profile-verify.rs",
+      "sha256": "4d5801ce92869ec9e4057e1a03d1b8b761b96d939aa0c6f7209be16e21b42be6"
     },
     {
       "path": "icons/icon.ico",
@@ -549,6 +553,10 @@
       "sha256": "36765e750215437086e74607b3137d369ae0aa15df0ba9dcd6f15cb010e6cccc"
     },
     {
+      "path": "scripts/launcher-smoke.ps1",
+      "sha256": "4e6b0ba177a28550888a755f2a560f6b860b4c1688162f90531181117fa1e162"
+    },
+    {
       "path": "scripts/native-smoke.ps1",
       "sha256": "984f8e09c855ecb3a7957c72797dc38c20ea2368cf1afed2cf8f9cba93d7e3a5"
     },
@@ -587,6 +595,10 @@
     {
       "path": "src/bin/live-check.rs",
       "sha256": "9de80d8814bb8ee2061b397d0547af35bb11b97a47992f3dd9de53f2fd447841"
+    },
+    {
+      "path": "src/bin/player.rs",
+      "sha256": "8982626529a5e1540462af059be07b8b7d62b51d11377ef7e9a2b92db6cde0ef"
     },
     {
       "path": "src/config.rs",
@@ -1093,16 +1105,16 @@
       "sha256": "8127b2eb53821b0494b0400bb965c3c0f826f244cbc178d28921086d604166f2"
     }
   ],
-  "sourceFingerprint": "0517152c6c202a6ded52f7629b8393a47c5e5bf893aef46450ec922ef5cd50a9",
+  "sourceFingerprint": "5917689cf58e78ae469cceaed5dd7018b3950c55035d5af261c129177d0f20d8",
   "binary": {
     "path": "target/release/ae-strom.exe",
     "bytes": 18595840,
-    "sha256": "0301161123ed613453bd99b0a68191dcf08f2cb6716deafea0b3b0e450bafde4",
+    "sha256": "89b129bad8c0272ea6a7b202688fa8c8e47d65c6308db4027e126e2304ed4d96",
     "features": [
       "custom-protocol",
       "live-audio"
     ],
-    "defaultMode": "fake/stopped"
+    "defaultMode": "fake/stopped when launched directly; explicit live via launcher"
   },
   "checks": {
     "browserTests": 64,
@@ -1110,7 +1122,7 @@
     "strictTypes": true,
     "vendorRuntimeFiles": 6,
     "vendorDeclarations": 85,
-    "rustUnit": 30,
+    "rustUnit": 34,
     "rustDoc": 7,
     "fmt": true,
     "clippyExit": 0,
@@ -1123,12 +1135,30 @@
     "nativeMonitorCount": 1,
     "physicalOSInput": false,
     "firstCompositorFrameObserved": false,
-    "liveAudioTest": "deferred: existing-player conflict not cleared; no audio started",
-    "privateProfilesCopied": false,
+    "liveAudioTest": "PASS: two bounded phases at app volume 10%, non-silent output callbacks, zero workers after shutdown",
     "configImportExecuted": false,
     "originalProjectUnchanged": true,
-    "unchangedRustDomainFilesAfterRename": 19
+    "unchangedRustDomainFilesAfterRename": 19,
+    "rustLibraryUnit": 30,
+    "rustLauncherUnit": 4,
+    "nativeFakeChecks": 33,
+    "nativeLauncherProbe": true,
+    "userHeardSound": null,
+    "privateProfileTransferredWithAuthorization": true,
+    "privateProfilesIncludedInGit": false,
+    "profileAllJsonFieldsPreserved": true,
+    "sourceProfileUnchanged": true
   },
   "privateProfilesIncluded": false,
-  "generatedUtc": "2026-11-03T18:52:58.621487+00:00"
+  "generatedUtc": "2026-11-03T19:23:32.742283+00:00",
+  "launcher": {
+    "path": "ae-strom-player.exe",
+    "buildPath": "target/release/ae-strom-player.exe",
+    "bytes": 253440,
+    "sha256": "7a91253bbc7c1d4aff678ec5b7b8b73c879f5290a094bd9efd501b18d5099b1f",
+    "mode": "live/stopped",
+    "profile": "local-data/player",
+    "consoleWindow": false,
+    "autoplay": false
+  }
 }

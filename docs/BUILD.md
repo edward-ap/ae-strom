@@ -15,3 +15,9 @@ Default data root is AeStrom, with separate preview/player subdirectories; expli
 `scripts/startup-smoke.ps1` runs four sequential native fake launches using only newly generated synthetic profiles, checks hidden-before-show geometry and writes ignored evidence. Additional available monitors are tested when present; it never reads an existing user profile.
 
 `scripts/startup-smoke.ps1` runs four sequential native fake launches using only newly generated synthetic profiles, checks hidden-before-show geometry and writes ignored evidence. Additional available monitors are tested when present; it never reads an existing user profile.
+
+## Configured desktop launcher
+
+`cargo build --release --locked --features live-audio --bins --examples` produces the main GUI, ae-strom-player launcher and offline profile-copy verifier example. Copy the launcher to the project root as `ae-strom-player.exe`. It starts the main GUI with --enable-live-audio and the absolute local-data/player profile, Stopped. The launcher also works alongside the GUI in a portable bundle, using local-data/player beside them. Unit tests cover root/release/portable layouts and missing main EXE.
+
+`scripts/launcher-smoke.ps1` compiles a tiny local synthetic child with the installed Rust compiler and verifies real Windows launcher argument forwarding through a path containing spaces. It does not open the configured player profile or any audio device. The offline `profile-verify` example must receive only a fresh audit COPY: its loader can normalize that copy. It checks exact JSON save/load and never requests station URLs.

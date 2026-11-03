@@ -3,7 +3,7 @@
 A compact radio player: native Rust audio, Tæt UI controls and a Tauri WebView.
 Technical project/crate names: `ae-strom` / `ae_strom`. Version 0.1.0 is a local test candidate.
 
-The default launch is a silent synthetic preview. Real playback requires an explicit `--enable-live-audio` launch and a selected station. No previous player/profile is discovered or imported automatically.
+The configured desktop launcher is `ae-strom-player.exe` in the project root: double-click it for full Rust audio with the isolated `local-data/player` profile. It starts Stopped and never autoplays. The main `target/release/ae-strom.exe` still defaults to silent preview when run directly without flags. No previous profile is discovered or imported automatically.
 
 ## Build and run
 
@@ -19,11 +19,11 @@ cargo build --release --locked --features live-audio --bins
 ./target/release/ae-strom.exe --fake
 ```
 
-Browser preview: `npm run preview`. Native fake acceptance: `./scripts/native-smoke.ps1` after building.
+Browser preview: `npm run preview`. Native fake acceptance: `./scripts/native-smoke.ps1` after building. Build also produces `target/release/ae-strom-player.exe`; copy that launcher to the project root for the configured no-flags desktop launch. The launcher is a native GUI executable without a console or script host. The root launcher and all profiles stay outside Git.
 
 ## Profiles and listening
 
-New default roots are `%LOCALAPPDATA%/AeStrom/preview` and `%LOCALAPPDATA%/AeStrom/player` on Windows; the latter is used only with `--enable-live-audio`. Each contains its own config and WebView data. `--data-dir <absolute-directory>` overrides the root. The old player's data and app identity are not reused.
+New default roots are `%LOCALAPPDATA%/AeStrom/preview` and `%LOCALAPPDATA%/AeStrom/player` on Windows; the latter is used only with `--enable-live-audio`. Each contains its own config and WebView data. `--data-dir <absolute-directory>` overrides the root. The old player's app identity is not reused. An explicitly authorized profile transfer can populate `local-data/player`; it is never automatic.
 
 After closing any competing radio session, an intentional listening launch is:
 

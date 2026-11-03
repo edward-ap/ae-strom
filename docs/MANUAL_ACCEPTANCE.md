@@ -10,8 +10,10 @@ Use only an isolated profile and do not run a second real audio session beside a
 6. Ctrl+C outside editors copies the full Rust title. Settings/EQ/mute states and physical-key shortcuts must stay independent of text editing.
 7. Only after other radio players are closed, intentionally launch `--enable-live-audio` with a fresh absolute --data-dir. Enter the user-approved stream, set app volume 10% and Play briefly. Confirm audible output yourself, then Stop→Play and orderly Close. Do not change system volume/device. PCM/callback diagnostics alone do not establish perceived quality.
 
-No profile import is part of this migration. Choose and authorize that separately. Long listening soak, accessibility/IME, installers/code signing and non-Windows native hosts remain unverified until explicitly exercised.
+A subsequent explicit authorization transferred the working profile to the separate project-local player profile. The original remains read-only and unchanged. Long listening soak, accessibility/IME, installers/code signing and non-Windows native hosts remain unverified until explicitly exercised.
 
 Check startup with missing, valid and offscreen synthetic geometry: there must be no visible white flash or intermediate window. Confirm Noto Sans 12 px throughout and legibility of Æ/ø and Cyrillic. Selecting an empty slot must not add a row; real errors remain visible in the ticker. Native programmatic checks do not replace these first-frame and physical-input observations.
 
 Check startup with missing, valid and offscreen synthetic geometry: there must be no visible white flash or intermediate window. Confirm Noto Sans 12 px throughout and legibility of Æ/ø and Cyrillic. Selecting an empty slot must not add a row; real errors remain visible in the ticker. Native programmatic checks do not replace these first-frame and physical-input observations.
+
+For configured use, double-click the root ae-strom-player.exe. Confirm all expected banks/stations/EQ, Stopped startup, and then intentionally Play. Automated live acceptance has verified two bounded PCM/output phases and zero workers after shutdown, but audible quality still needs the user's ears.

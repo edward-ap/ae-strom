@@ -44,3 +44,8 @@ live-audio = ["dep:cpal", "dep:symphonia", "dep:biquad", "dep:realfft", "dep:num
 name = "ae-strom-live-check"
 path = "src/bin/live-check.rs"
 required-features = ["live-audio"]
+
+[[bin]]
+name = "ae-strom-player"
+path = "src/bin/player.rs"
+required-features = ["live-audio"]
