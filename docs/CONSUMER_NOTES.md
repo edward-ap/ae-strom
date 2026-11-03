@@ -11,3 +11,5 @@ This migration follows an earlier source-aware audit; it is not a blind docs-onl
 Tauri PackageInfo.name follows config.productName when provided; it is the display name, not Cargo's crate_name. The native identity gate therefore checks Æ Strøm there, while Cargo metadata and the ae-strom.exe path identify the ASCII technical package. This was verified against the pinned tauri-codegen source before native testing.
 
 The full main executable now defaults to live/stopped with a portable profile. This is native Rust startup policy, independent of the UI framework. Fake is explicit, and no launcher/script host is needed.
+
+ScrollingLabelOptions has no public alignment option in the pinned declarations. Idle branding therefore uses public setPaused/setText and scoped app styling for centering/repeat visibility; its core lifecycle, observers and playing marquee remain unchanged. No new core patch or runtime dependency was introduced.

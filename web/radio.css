@@ -123,3 +123,8 @@ html,body{font:var(--dui-font-size)/var(--dui-line-height) var(--dui-font-family
 .radio-owner .station-row input,.radio-owner .player-strip button,.radio-owner .bank-strip button,.radio-owner .eq-sliders :is(.dui-trackbar__label,.dui-trackbar__value){font-family:var(--dui-font-family);font-size:var(--dui-font-size)}
 .radio-owner .channel-slot{line-height:1}
 .radio-owner .eq-grid-label{width:44px;height:18px;line-height:18px}
+
+/* App-only idle presentation; the standard ScrollingLabel owns its lifecycle. */
+.radio-owner .radio-ticker--idle{display:flex;align-items:center;justify-content:center;text-align:center}
+.radio-owner .radio-ticker--idle .dui-scrolling-label__track{flex:none}
+.radio-owner .radio-ticker--idle .dui-scrolling-label__text[aria-hidden="true"]{display:none}

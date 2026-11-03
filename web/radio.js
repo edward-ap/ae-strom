@@ -5,6 +5,7 @@ import { SpectrumAnalyzer } from './extensions/SpectrumAnalyzer.js';
 const letter = bank => String.fromCharCode(65 + bank);
 const digit = slot => String((slot + 1) % 10);
 const silent = { silent: true, origin: 'import' };
+const IDLE_TITLE = '-= Æ Strøm =-';
 const isEditor = target => target instanceof Element && !!target.closest('input,textarea,select,[contenteditable="true"],[role="combobox"],[role="slider"],[role="listbox"]');
 
 /** One owner, one bridge, persistent live controls. No audio or persistence in JS. */
@@ -33,7 +34,7 @@ export function createRadioUI(host, bridge) {
   const display = new Panel({ name: 'display', css: 'radio-display', padding: 0 }); strip.add(display);
   const spectrum = new SpectrumAnalyzer({ name: 'spectrum', bands: 5, width: 42, height: 24, background: '#003D66', idleColor: '#323940', baselineColor: '#61a77e', activeColors: ['#74b88b', '#b9c762', '#da8664'], peakColor: '#d7e3b1' }); display.add(spectrum);
   spectrum.element.classList.add('radio-spectrum'); spectrum.element.dataset.dragSurface = 'true';
-  const ticker = new ScrollingLabel({ name: 'ticker', text: 'Æ Strøm', speed: 28, startDelay: 1200, className: 'radio-ticker' }); display.add(ticker);
+  const ticker = new ScrollingLabel({ name: 'ticker', text: IDLE_TITLE, speed: 28, startDelay: 1200, className: 'radio-ticker' }); display.add(ticker);
   const indicator = new ChannelIndicator({ name: 'channel' }); display.add(indicator);
   const mute = addIconButton('mute', 'speaker', 'Mute', command('mute', () => snapshot && run({ type: 'setMuted', muted: !snapshot.muted })), false);
   const volume = new TrackBar({ name: 'volume', thumbShape: 'grip', min: 0, max: 100, step: 1, smallChange: 5, largeChange: 10, value: 80, showValue: false, onChange: e => run({ type: 'setVolume', volume: e.newValue }) }); strip.add(volume); setLabel(volume, 'Volume'); volume.element.classList.add('radio-volume');
@@ -119,9 +120,12 @@ export function createRadioUI(host, bridge) {
     const message = errorText || snapshot?.error || '';
     status.setText(message);
     const fullTitle = snapshot?.fullTitle || 'Æ Strøm';
-    const title = String(message || snapshot?.displayTitle || fullTitle).slice(0, 240);
+    const idle = !message && (!snapshot || snapshot.status === 'stopped' && !snapshot.requestedPlaying);
+    const title = idle ? IDLE_TITLE : String(message || snapshot?.displayTitle || fullTitle).slice(0, 240);
+    ticker.element.classList.toggle('radio-ticker--idle', idle);
+    ticker.setPaused(idle);
     ticker.setText(title);
-    ticker.element.title = `${snapshot?.mode === 'fake' ? 'Synthetic preview - no audio | ' : ''}${message || fullTitle} | ${snapshot?.status || 'stopped'}`;
+    ticker.element.title = `${snapshot?.mode === 'fake' ? 'Synthetic preview - no audio | ' : ''}${message || (idle ? IDLE_TITLE : fullTitle)} | ${snapshot?.status || 'stopped'}`;
     ticker.element.setAttribute('aria-label', `${message ? 'Error: ' : ''}${snapshot?.mode === 'fake' ? 'Synthetic preview. No audio. ' : ''}${title}`);
     for (const control of [chevron, play]) {
       control.element.setAttribute('aria-description', message);

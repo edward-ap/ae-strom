@@ -434,7 +434,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "9351c39b05777f34c5a0c1ba9325a984d664dff8d13248a51eaaaa48dfc27ef0"
+      "sha256": "c91358a28683948601e07f46ab3b7944eb6ec47d11a8bb2b71271a03940c4f87"
     },
     {
       "path": "browser-tests/branding.spec.js",
@@ -454,7 +454,11 @@
     },
     {
       "path": "browser-tests/followup.spec.js",
-      "sha256": "df487e086f3a009be6aa24210720819cc7cca90c19a310ab89d52b2403ce7d57"
+      "sha256": "5d6f930c0401f7d2cf6e07f31d25d159a484916152692a65795c165990cd8421"
+    },
+    {
+      "path": "browser-tests/idle-brand.spec.js",
+      "sha256": "796b83ffe7d4439e97683aca69e68232a071f40dc6528907aaf294384d4ceac1"
     },
     {
       "path": "browser-tests/polish.spec.js",
@@ -466,7 +470,7 @@
     },
     {
       "path": "browser-tests/radio.spec.js",
-      "sha256": "5bc3c858a2c64cb6c439a570a250d04c76da006daf45498470335005a2bdb7fb"
+      "sha256": "76c431372f31dc87781abe8c9bf82a3e1fe6417235abb5222f051a4e88ce62dc"
     },
     {
       "path": "browser-tests/select-r4.spec.js",
@@ -490,7 +494,7 @@
     },
     {
       "path": "docs/CONSUMER_NOTES.md",
-      "sha256": "fcb78ed07730e3c41a4f8ca10bf57bed8eeb94b474510f4983315f95ce30e2a4"
+      "sha256": "fabdeafa1f079735ecbbd3ce8765a17ac1eb32d6feb727070e399f9d2da9b0a2"
     },
     {
       "path": "docs/MANUAL_ACCEPTANCE.md",
@@ -502,11 +506,11 @@
     },
     {
       "path": "docs/UI_POLISH.md",
-      "sha256": "c254bb588186e745249f536abebcd3afc1bd8c80db445f0e83062b308e4675ee"
+      "sha256": "d34723caa18a11c66bd5283b336e1342595390f0fb10dd108e996690078810a9"
     },
     {
       "path": "docs/VERIFICATION.md",
-      "sha256": "6331d19c2b992b9edd3e88ebde269895ac45192d279f211228facd2a8f28b4ce"
+      "sha256": "13d91bf9ef9310c90bb212cfb33bc640fc25221994c6a4b11475c6a062c13bb5"
     },
     {
       "path": "docs/images/compact.png",
@@ -514,15 +518,15 @@
     },
     {
       "path": "docs/images/equalizer.png",
-      "sha256": "a528e1be58e1929529c6a2bd98e937f58b2284267b2a10c85d70883e201e0da6"
+      "sha256": "6012fe3174675c9efa450db59122de338ca5b4f1b18593b16201a0e9576e3b52"
     },
     {
       "path": "docs/images/player.png",
-      "sha256": "51bed6ec7faa28b608815cf597d90561b658c76becceee1ac3bda8112aa8949d"
+      "sha256": "f26bca341cc4a5c7369a2be7970155e2444f31eab9b7cfddfb87dc2b528be310"
     },
     {
       "path": "docs/images/settings.png",
-      "sha256": "08841904308aa2eb1faf88e9ad13174a2623a945f384cf57b135e514e0e6e9f8"
+      "sha256": "5a214d824f86150c84ce9db23b98f7917d570fd4464b1df0d49d8d3510db0d5b"
     },
     {
       "path": "examples/profile-verify.rs",
@@ -582,7 +586,7 @@
     },
     {
       "path": "scripts/startup-smoke.ps1",
-      "sha256": "57967f2e9b8b7cad997dfff4bcb42916aafa3ddb372267298f9ef9f37507dda7"
+      "sha256": "6025510fa7796e4cb61ce958cc9dfbb6a61bb1200aeccefe0375152400a2cbb0"
     },
     {
       "path": "scripts/vendor-taet.js",
@@ -730,7 +734,7 @@
     },
     {
       "path": "web/native-smoke.js",
-      "sha256": "ca9a5e049597586194b58796c7579e2566a7020b0e4671880506dff214ff253a"
+      "sha256": "646c562f729592829925d586202a6d537b529c327f39a44d86b4221c237060a5"
     },
     {
       "path": "web/preview-bridge.js",
@@ -738,7 +742,7 @@
     },
     {
       "path": "web/radio.css",
-      "sha256": "108735f59064d2059a6b73f35fb5950279daafdf5883693b1673bd17b84b16f1"
+      "sha256": "ee004e16cd8664cd1f579398bd7cc806e01b9eb131896add1ebe17d22fb93894"
     },
     {
       "path": "web/radio.d.ts",
@@ -746,11 +750,11 @@
     },
     {
       "path": "web/radio.js",
-      "sha256": "6cce4b43540d3cbe241fcd85aed91fb03e91ff23d43e895a3a52bf84c4e1cf63"
+      "sha256": "02a660c0cd0664c6a17c880fa437fa083c326c507e0acefbcc9a760c0359a039"
     },
     {
       "path": "web/startup-probe.js",
-      "sha256": "ec015cd1a760abe5b3cbe488614d6cf9cd85fca11c34763ffab51df7bb26442d"
+      "sha256": "a3b7b8143af3f66dae393eba1708145a7356272b391c33a887b4b504e4dc28f3"
     },
     {
       "path": "web/vendor/LICENSE",
@@ -1125,12 +1129,12 @@
       "sha256": "8127b2eb53821b0494b0400bb965c3c0f826f244cbc178d28921086d604166f2"
     }
   ],
-  "sourceFingerprint": "df76d08122ed23e3002ea48d148beaa927a732b45e5deab1d7edfe3f2381c84e",
+  "sourceFingerprint": "bda5a5abf72adafebc440b6947f8816dceb1e8ff53c9b7469bd2398063da4c37",
   "binary": {
     "path": "ae-strom.exe",
     "buildPath": "target/release/ae-strom.exe",
-    "bytes": 18591744,
-    "sha256": "d7a10aae70022bf32f70c97ce1495d04259ba506d8133a7ecff2d7a49b8103a9",
+    "bytes": 18592256,
+    "sha256": "33010a8ffe3ce1d845807337967f71aef2acedee293312f61b44a41e9e527b32",
     "features": [
       "custom-protocol",
       "live-audio"
@@ -1142,8 +1146,8 @@
     "autoplay": false
   },
   "checks": {
-    "browserTests": 64,
-    "syntaxFiles": 25,
+    "browserTests": 72,
+    "syntaxFiles": 26,
     "strictTypes": true,
     "vendorRuntimeFiles": 6,
     "vendorDeclarations": 85,
@@ -1165,13 +1169,13 @@
     "originalProjectUnchanged": true,
     "unchangedRustDomainFilesAfterRename": 19,
     "rustLibraryUnit": 36,
-    "nativeFakeChecks": 33,
+    "nativeFakeChecks": 35,
     "userHeardSound": null,
     "privateProfileTransferredWithAuthorization": true,
     "privateProfilesIncludedInGit": false,
     "profileAllJsonFieldsPreserved": true,
     "sourceProfileUnchanged": true,
-    "nativeSingleExeChecksPerRun": 6,
+    "nativeSingleExeChecksPerRun": 7,
     "nativeSingleExeRuns": 2,
     "defaultLive": true,
     "autoplay": false,
@@ -1198,8 +1202,17 @@
         257
       ]
     },
-    "runtimeSourceAndExeUnchangedDuringDocsCleanup": true
+    "runtimeSourceAndExeUnchangedDuringDocsCleanup": true,
+    "idleBrandText": "-= Æ Strøm =-",
+    "idleStaticCentered": true,
+    "optionalGradientShipped": false,
+    "currentUiPersonalProfileAccessed": false,
+    "currentUiPersonalProfileWritten": false,
+    "currentUiAudioStarted": false,
+    "unchangedRustSource": true,
+    "currentUiRustUnitRerun": false,
+    "currentUiReleaseBuild": true
   },
   "privateProfilesIncluded": false,
-  "generatedUtc": "2026-11-03T20:38:04.291121+00:00"
+  "generatedUtc": "2026-11-03T22:07:21.002561+00:00"
 }

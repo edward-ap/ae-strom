@@ -9,6 +9,8 @@ export async function runNativeSmoke(ui, bridge) {
   check('synthetic backend',initial.mode==='fake',{mode:initial.mode});
   if(initial.mode!=='fake')throw Error('Smoke refuses live backend');
   check('startup geometry',document.querySelector('.player-strip').getBoundingClientRect().height===36,{});
+  const idleTicker=document.querySelector('.radio-ticker'),idleText=idleTicker.querySelector('.dui-scrolling-label__text'),idleRect=idleTicker.getBoundingClientRect(),idleTextRect=idleText.getBoundingClientRect();
+  check('static centered idle brand',idleText.textContent==='-= Æ Strøm =-'&&idleTicker.classList.contains('radio-ticker--idle')&&Math.abs((idleTextRect.left+idleTextRect.right-idleRect.left-idleRect.right)/2)<.75&&!idleTicker.getAnimations({subtree:true}).some(a=>a.playState==='running'),{centerError:Math.abs((idleTextRect.left+idleTextRect.right-idleRect.left-idleRect.right)/2)});
   const playing=await bridge.dispatch({type:'setPlaying',playing:true});
   check('play snapshot',playing.requestedPlaying,{generation:playing.generation});
   const selected=await bridge.dispatch({type:'selectStation',bank:25,slot:9});
@@ -77,6 +79,8 @@ export async function runNativeSmoke(ui, bridge) {
   } finally {bridge.dispatch=originalDispatch;}
   button('play').click();await new Promise(requestAnimationFrame);
   const final=await bridge.dispatch({type:'setPlaying',playing:false});
+  await new Promise(requestAnimationFrame);
+  check('Stop restores idle brand',document.querySelector('.radio-ticker .dui-scrolling-label__text').textContent==='-= Æ Strøm =-'&&document.querySelector('.radio-ticker').classList.contains('radio-ticker--idle'),{});
   check('stop snapshot',!final.requestedPlaying,{generation:final.generation});
   await window.__TAURI__.core.invoke('save_ui_evidence',{body:JSON.stringify({kind:'programmatic native fake-backend smoke',userInput:false,audio:false,checks,pass:checks.every(c=>c.pass),snapshot:{mode:final.mode,generation:final.generation,status:final.status}},null,2)});
  } catch(error) { await window.__TAURI__.core.invoke('save_ui_evidence',{body:JSON.stringify({pass:false,error:String(error),checks},null,2)}); }

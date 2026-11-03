@@ -97,7 +97,7 @@ for(const slot of [0,5,6,7,8,9])test(`native URL selection and horizontal scroll
 });
 
 test('safe metadata text and teardown subscriptions',async({page})=>{
- await page.evaluate(()=>window.radioPreview.bridge.update({fullTitle:'<img src=x onerror=alert(1)>'.repeat(20),displayTitle:'<img src=x onerror=alert(1)>'.repeat(20)}));
+ await page.evaluate(()=>window.radioPreview.bridge.update({status:'playing',requestedPlaying:true,fullTitle:'<img src=x onerror=alert(1)>'.repeat(20),displayTitle:'<img src=x onerror=alert(1)>'.repeat(20)}));
  expect(await page.locator('.radio-ticker').innerText()).toContain('<img');await expect(page.locator('.radio-ticker img')).toHaveCount(0);
  const displayed=await page.locator('.radio-ticker .dui-scrolling-label__text').first().innerText();expect(displayed.length).toBeLessThanOrEqual(240);
  await page.evaluate(()=>window.radioPreview.ui.destroy());expect(await page.locator('.radio-owner').count()).toBe(0);

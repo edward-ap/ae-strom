@@ -57,6 +57,8 @@ Equalizer:
 
 ## Interface and framework
 
+When stopped without an error, the ticker shows **-= Æ Strøm =-** centered and still. Connection/reconnection messages, errors and playing track titles retain the normal ticker behavior.
+
 - A–Z banks with ten slots; active playback and Settings browsing are separate.
 - Play/Stop, volume/mute, scrolling title and full-title Ctrl+C outside editors.
 - Ten-band EQ/preamp, custom presets and per-station assignments.

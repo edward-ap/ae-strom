@@ -12,15 +12,15 @@ function Run-Case($name,$config,$reason){
  if(-not $proc.WaitForExit(45000)){throw "Own synthetic launch still running PID $($proc.Id); inspect before retry: $dir"}
  $record=Get-Content -LiteralPath (Join-Path $dir 'native-ui.json') -Raw -Encoding utf8 | ConvertFrom-Json
  $s=$record.host.startup
- if($proc.ExitCode -ne 0 -or -not $record.ui.pass -or $record.ui.checks.Count -ne 33){throw "Native checks failed: $dir"}
+ if($proc.ExitCode -ne 0 -or -not $record.ui.pass -or $record.ui.checks.Count -ne 35){throw "Native checks failed: $dir"}
  if($s.visibleBefore -or -not $s.visibleAfter -or $s.arbitraryDelay -or $s.planned.reason -ne $reason -or -not $s.ui.fontLoaded){throw "Startup ordering failed: $dir"}
  foreach($key in @('x','y')){if($s.positionBeforeShow.$key -ne $s.planned.$key -or $s.positionAfterShow.$key -ne $s.planned.$key){throw "Position mismatch: $dir"}}
  foreach($key in @('width','height')){if($s.sizeBeforeShow.$key -ne $s.sizeAfterShow.$key){throw "Visible geometry changed: $dir"}}
- Write-Host "$name PASS: 33 checks, $reason, hidden before geometry/show"
+ Write-Host "$name PASS: 35 checks, $reason, hidden before geometry/show"
  return $record
 }
 $first=Run-Case 'absent' $null 'centered-default'
-$results+=@{case='absent';evidence='absent/native-ui.json';checks=33;pass=$true}
+$results+=@{case='absent';evidence='absent/native-ui.json';checks=35;pass=$true}
 $primary=@($first.host.startup.monitors | Where-Object primary)[0]
 if($null -eq $primary){$primary=$first.host.startup.monitors[0]}
 # Only the freshly generated fake profile is read; no existing user profile.
