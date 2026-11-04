@@ -28,3 +28,8 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 *.pdb
+
+# Portable profile backup names and native browser storage
+/config.json.pre-migration-*
+/webview/
+/*.exe.WebView2/

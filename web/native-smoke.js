@@ -76,9 +76,19 @@ export async function runNativeSmoke(ui, bridge) {
   ui.showPanel(null);
   const originalDispatch=bridge.dispatch;
   try {
-    bridge.dispatch=async()=>{throw Error('Synthetic native error');};button('play').click();await new Promise(requestAnimationFrame);
     const status=document.querySelector('.radio-status');
-    check('errors never create a protruding row',Math.abs(document.querySelector('.radio-owner').getBoundingClientRect().height-36)<.75&&getComputedStyle(status).clipPath==='inset(50%)'&&document.querySelector('.radio-ticker').textContent.includes('Synthetic native error'),{statusWidth:status.getBoundingClientRect().width,statusHeight:status.getBoundingClientRect().height});
+    // Await the actual rejected-action rendering, rather than assuming one RAF
+    // drains promises/native IPC left by earlier focus/blur interactions.
+    const errorShown=new Promise((resolve,reject)=>{
+      const observer=new MutationObserver(()=>{
+        if(status.textContent.includes('Synthetic native error')){observer.disconnect();clearTimeout(deadline);resolve();}
+      });
+      const deadline=setTimeout(()=>{observer.disconnect();reject(Error('Synthetic error did not render before the test deadline'));},3000);
+      observer.observe(status,{subtree:true,childList:true,characterData:true});
+    });
+    bridge.dispatch=async()=>{throw Error('Synthetic native error');};button('play').click();await errorShown;
+    const ownerHeight=document.querySelector('.radio-owner').getBoundingClientRect().height,clip=getComputedStyle(status).clipPath,tickerError=document.querySelector('.radio-ticker').textContent.includes('Synthetic native error');
+    check('errors never create a protruding row',Math.abs(ownerHeight-36)<.75&&clip==='inset(50%)'&&tickerError,{ownerHeight,clip,tickerError,statusWidth:status.getBoundingClientRect().width,statusHeight:status.getBoundingClientRect().height});
   } finally {bridge.dispatch=originalDispatch;}
   button('play').click();await new Promise(requestAnimationFrame);
   const final=await bridge.dispatch({type:'setPlaying',playing:false});

@@ -1,7 +1,7 @@
 use crate::model::{Config, EqPreset, StationPreset};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -17,28 +17,40 @@ pub enum ConfigError {
     Json(#[from] serde_json::Error),
 }
 
-/// Load configuration from disk or return defaults if the file is missing.
+/// Read and normalize in memory only. Startup preparation owns backup/migration writes.
 pub fn load_or_default(path: &Path) -> Result<Config, ConfigError> {
-    if path.exists() {
-        let mut buf = String::new();
-        fs::File::open(path)?.read_to_string(&mut buf)?;
-        let value: serde_json::Value = serde_json::from_str(&buf)?;
-        let needs_bank_migration = value.get("lastBank").is_none();
-        let needs_storage_migration = value.get("stationBanks").is_none();
-        let mut cfg: Config = serde_json::from_value(value)?;
-        if let Some(presets) = presets_from_station_banks(&buf)? {
-            cfg.presets = presets;
-        }
-        let changed =
-            normalize_for_bank_layout(&mut cfg) || needs_bank_migration || needs_storage_migration;
-        validate(&cfg)?;
-        if changed {
-            save(path, &cfg)?;
-        }
-        Ok(cfg)
+    if path.try_exists()? {
+        decode_compatible(&fs::read_to_string(path)?)
     } else {
         Ok(default_config())
     }
+}
+
+pub(crate) fn document_value(raw: &str) -> Result<serde_json::Value, ConfigError> {
+    crate::config_document::parse(raw)
+}
+pub(crate) fn stored_value(cfg: &Config) -> serde_json::Value {
+    // Match the actual wire serializer: to_value expands f32 to f64 and can
+    // falsely classify stable fractional EQ gains as a migration on every start.
+    let bytes = serde_json::to_vec(&StoredConfig::from(cfg))
+        .expect("Config contains JSON-compatible values");
+    serde_json::from_slice(&bytes).expect("Serialized config is JSON")
+}
+/// Both historical layouts are accepted; unknown/duplicate/missing storage fields fail closed.
+pub fn decode_compatible(raw: &str) -> Result<Config, ConfigError> {
+    let value = document_value(raw)?;
+    let mut cfg: Config = serde_json::from_value(value)?;
+    if let Some(presets) = presets_from_station_banks(raw)? {
+        cfg.presets = presets;
+    }
+    normalize_for_bank_layout(&mut cfg);
+    preserve_legacy_reserved_eq(&mut cfg);
+    for station in &mut cfg.presets {
+        station.url = station.url.trim().to_owned();
+        station.metadata_url = station.metadata_url.trim().to_owned();
+    }
+    validate(&cfg)?;
+    Ok(cfg)
 }
 
 /// Saves a given configuration (`Config`) to a specified file path.
@@ -431,7 +443,7 @@ mod tests {
     }
 
     #[test]
-    fn old_config_without_bank_is_migrated_on_load() {
+    fn old_config_without_bank_is_normalized_in_memory_without_rewriting() {
         let mut path = env::temp_dir();
         path.push("mini_radio_old_config_migration.json");
 
@@ -471,17 +483,10 @@ mod tests {
         assert_eq!(loaded.presets.len(), 10);
         assert_eq!(loaded.presets[0].name, "Old Slot");
 
-        let rewritten: serde_json::Value =
-            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(rewritten["lastBank"], 0);
-        assert!(rewritten.get("presets").is_none());
-        let banks = rewritten["stationBanks"].as_array().unwrap();
-        assert_eq!(banks.len(), 1);
-        assert_eq!(banks[0]["bank"], "A");
-        assert_eq!(banks[0]["slots"].as_array().unwrap().len(), 1);
-        assert_eq!(banks[0]["slots"][0]["key"], "1");
-
-        fs::remove_file(&path).unwrap();
+        let after: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(after, old_json);
+        assert!(after.get("lastBank").is_none());
+        fs::remove_file(path).unwrap();
     }
 
     #[test]
@@ -582,30 +587,14 @@ pub fn import_explicit(source: &Path, destination: &Path) -> Result<(), ConfigEr
         .into());
     }
     let raw = fs::read_to_string(source)?;
-    let mut cfg: Config = serde_json::from_str(&raw)?;
-    if let Some(presets) = presets_from_station_banks(&raw)? {
-        cfg.presets = presets;
-    }
-    normalize_for_bank_layout(&mut cfg);
-    preserve_legacy_reserved_eq(&mut cfg);
-    // Old settings may contain paste whitespace. Normalize only the edges;
-    // preserve encoded path/query characters and reject malformed interiors.
-    for station in &mut cfg.presets {
-        station.url = station.url.trim().to_owned();
-        station.metadata_url = station.metadata_url.trim().to_owned();
-    }
-    validate(&cfg)?;
-    for preset in &cfg.custom_eq_presets {
-        if !std::iter::once(&preset.preamp)
-            .chain(preset.bands.iter())
-            .all(|v| v.is_finite() && (-15.0..=15.0).contains(v))
-        {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Invalid EQ values in import",
-            )
-            .into());
+    let cfg = decode_compatible(&raw)?;
+    if destination.try_exists()? {
+        let previous = fs::read_to_string(destination)?;
+        if stored_value(&decode_compatible(&previous)?) != stored_value(&cfg) {
+            return Err(invalid("Import conflicts with existing config; use a fresh destination. Both files were preserved"));
         }
+        // Import is idempotent and never rewrites an existing equivalent destination.
+        return Ok(());
     }
     save(destination, &cfg)
 }

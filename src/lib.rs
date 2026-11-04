@@ -23,3 +23,11 @@ mod backend_tests;
 pub mod startup;
 
 pub mod launch;
+
+mod config_document;
+pub mod profile;
+
+#[cfg(test)]
+mod profile_tests;
+
+pub mod startup_failure;

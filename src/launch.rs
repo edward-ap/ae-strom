@@ -1,9 +1,10 @@
-//! Explicit mode and portable profile routing, independent of cwd or appdata.
+//! Portable adjacent config, explicit test profiles, and read-only previous-profile discovery.
 use crate::controller::PlaybackMode;
 use std::path::{Path, PathBuf};
 
 pub struct Options {
     pub data: PathBuf,
+    pub legacy: Option<PathBuf>,
     pub mode: PlaybackMode,
     pub smoke: bool,
     pub startup_probe: bool,
@@ -60,13 +61,19 @@ pub fn parse(args: impl Iterator<Item = String>, executable: &Path) -> Result<Op
     if smoke && startup_probe {
         return Err("Choose one smoke mode".into());
     }
-    let data = data.unwrap_or(portable_root(executable)?.join("local-data").join(
+    let root = portable_root(executable)?;
+    let legacy = if data.is_none() && mode == PlaybackMode::Live {
+        Some(root.join("local-data/player/config.json"))
+    } else {
+        None
+    };
+    let data = data.unwrap_or_else(|| {
         if mode == PlaybackMode::Live {
-            "player"
+            root.clone()
         } else {
-            "preview"
-        },
-    ));
+            root.join("local-data/preview")
+        }
+    });
     if !data.is_absolute() {
         return Err("--data-dir must be absolute".into());
     }
@@ -80,6 +87,7 @@ pub fn parse(args: impl Iterator<Item = String>, executable: &Path) -> Result<Op
     }
     Ok(Options {
         data,
+        legacy,
         mode,
         smoke,
         startup_probe,
@@ -113,7 +121,8 @@ mod tests {
         let r = root();
         let o = opts(&r, &[]).unwrap();
         assert_eq!(o.mode, PlaybackMode::Live);
-        assert_eq!(o.data, r.join("local-data/player"));
+        assert_eq!(o.data, r);
+        assert_eq!(o.legacy, Some(r.join("local-data/player/config.json")));
         assert!(!o.smoke && !o.startup_probe);
         std::fs::remove_dir_all(r).unwrap();
     }
@@ -133,6 +142,7 @@ mod tests {
         let path = r.join("explicit profile");
         let o = opts(&r, &["--data-dir", path.to_str().unwrap()]).unwrap();
         assert_eq!(o.data, path);
+        assert!(o.legacy.is_none());
         assert_eq!(o.mode, PlaybackMode::Live);
         for args in [
             &["--data-dir"][..],
@@ -159,7 +169,7 @@ mod tests {
         let r = root();
         let bundle = r.join("target/release");
         let o = parse(std::iter::empty(), &bundle.join("ae-strom.exe")).unwrap();
-        assert_eq!(o.data, bundle.join("local-data/player"));
+        assert_eq!(o.data, bundle);
         std::fs::remove_dir_all(r).unwrap();
     }
     #[test]
@@ -168,13 +178,14 @@ mod tests {
         assert!(opts(&r, &["--startup-smoke"]).is_err());
         std::fs::create_dir_all(r.join("local-data/player")).unwrap();
         std::fs::write(
-            r.join("local-data/player/startup-probe.fixture"),
+            r.join("startup-probe.fixture"),
             "ae-strom synthetic startup fixture\n",
         )
         .unwrap();
         let o = opts(&r, &["--startup-smoke"]).unwrap();
         assert_eq!(o.mode, PlaybackMode::Live);
-        assert_eq!(o.data, r.join("local-data/player"));
+        assert_eq!(o.data, r);
+        assert_eq!(o.legacy, Some(r.join("local-data/player/config.json")));
         assert!(o.startup_probe);
         assert!(opts(&r, &["--fake", "--smoke", "--startup-smoke"]).is_err());
         std::fs::remove_dir_all(r).unwrap();

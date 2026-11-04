@@ -1,8 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use ae_strom::{
-    config,
-    controller::{Action, Controller, PlaybackMode, Snapshot, Update},
-};
+use ae_strom::controller::{Action, Controller, PlaybackMode, Snapshot, Update};
+use ae_strom::startup_failure::{self, Failure, Kind};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
@@ -13,6 +11,7 @@ use tauri::{Emitter, Manager, State, WebviewWindow};
 
 struct Host {
     controller: Controller,
+    profile: ae_strom::profile::Prepared,
     data: PathBuf,
     smoke: bool,
     layouts: Mutex<Vec<Value>>,
@@ -192,24 +191,99 @@ async fn save_ui_evidence(
         return Err("Evidence body too large".into());
     }
     let ui: Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
-    let record = json!({"ui":ui,"host":{"pid":std::process::id(),"packageName":app.package_info().name,"productName":app.config().product_name,"identifier":app.config().identifier,"windowTitle":window.title().map_err(|e|e.to_string())?,"version":app.package_info().version.to_string(),"dataIsAbsolute":state.data.is_absolute(),"profileName":state.data.file_name().map(|s|s.to_string_lossy().into_owned()),"webview":tauri::webview_version().unwrap_or_default(),"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"size":window.inner_size().map_err(|e|e.to_string())?,"mode":state.controller.snapshot().mode,"audioAllowed":false,"engineDiagnostics":state.controller.diagnostics().ok(),"layouts":*state.layouts.lock().unwrap(),"startup":state.startup.0.lock().unwrap().evidence}});
+    let record = json!({"ui":ui,"host":{"pid":std::process::id(),"packageName":app.package_info().name,"productName":app.config().product_name,"identifier":app.config().identifier,"windowTitle":window.title().map_err(|e|e.to_string())?,"version":app.package_info().version.to_string(),"dataIsAbsolute":state.data.is_absolute(),"configFile":state.data.join("config.json"),"webviewDirectory":state.profile.webview,"profileOrigin":state.profile.origin,"profileName":state.data.file_name().map(|s|s.to_string_lossy().into_owned()),"webview":tauri::webview_version().unwrap_or_default(),"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"size":window.inner_size().map_err(|e|e.to_string())?,"mode":state.controller.snapshot().mode,"audioAllowed":false,"engineDiagnostics":state.controller.diagnostics().ok(),"layouts":*state.layouts.lock().unwrap(),"startup":state.startup.0.lock().unwrap().evidence}});
     let path = state.data.join("native-ui.json");
     std::fs::write(path, serde_json::to_vec_pretty(&record).unwrap()).map_err(|e| e.to_string())?;
     let controller = state.controller.clone();
     finish(app, controller).await
 }
-fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let options = ae_strom::launch::parse(std::env::args().skip(1), &std::env::current_exe()?)
-        .map_err(std::io::Error::other)?;
-    if options.mode == PlaybackMode::Live && !cfg!(feature = "live-audio") {
-        return Err("Rebuild with --features live-audio before enabling real audio".into());
-    }
-    std::fs::create_dir_all(&options.data)?;
+fn initialize_player(
+    app: &mut tauri::App,
+    options: ae_strom::launch::Options,
+) -> Result<(), Failure> {
     let config_path = options.data.join("config.json");
-    if let Some(source) = options.import.as_ref() {
-        config::import_explicit(source, &config_path)?;
+    let app_local = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|_| Failure(Kind::AppData))?;
+    let profile = ae_strom::profile::prepare(
+        &config_path,
+        options.legacy.as_deref(),
+        options.import.as_deref(),
+        &app_local,
+    )
+    .map_err(Failure::profile)?;
+    let restore = profile.config.clone();
+    let webview_directory = profile.webview.clone();
+    let handle = app.handle().clone();
+    let sink = Arc::new(move |update| match update {
+        Update::State(s) => {
+            let _ = handle.emit_to("main", "radio-state", s);
+        }
+        Update::Spectrum(s) => {
+            let _ = handle.emit_to("main", "spectrum", s);
+        }
+    });
+    let controller = Controller::start(config_path.clone(), options.mode, sink)
+        .map_err(|_| Failure(Kind::Controller))?;
+    app.manage(Host {
+        controller,
+        profile,
+        data: options.data.clone(),
+        smoke: options.smoke || options.startup_probe,
+        layouts: Mutex::new(Vec::new()),
+        startup: Arc::new((
+            Mutex::new(StartupState {
+                host_ready: false,
+                saved: restore
+                    .window_pos_valid
+                    .then_some((restore.window_x, restore.window_y)),
+                evidence: None,
+            }),
+            Condvar::new(),
+        )),
+    });
+    let _window = tauri::WebviewWindowBuilder::from_config(
+        app.handle(),
+        app.config()
+            .app
+            .windows
+            .first()
+            .ok_or(Failure(Kind::WebView))?,
+    )
+    .map_err(|_| Failure(Kind::WebView))?
+    .visible(false)
+    .background_color(tauri::window::Color(0, 0, 0, 255))
+    .data_directory(webview_directory)
+    .initialization_script(if options.startup_probe {
+        "window.__RADIO_STARTUP_PROBE__=true;window.__RADIO_SMOKE_AUTORUN__=false;"
+    } else if options.smoke {
+        "window.__RADIO_SMOKE_AUTORUN__=true;"
+    } else {
+        "window.__RADIO_SMOKE_AUTORUN__=false;"
+    })
+    .on_navigation(|url| {
+        matches!(
+            (url.scheme(), url.host_str()),
+            ("tauri", Some("localhost")) | ("http", Some("tauri.localhost"))
+        ) && url.port().is_none()
+    })
+    .build()
+    .map_err(|_| Failure(Kind::WebView))?;
+    // No window is visible until the frontend has settled fonts/layout.
+    let host = app.state::<Host>();
+    let (lock, wake) = &*host.startup;
+    lock.lock().unwrap().host_ready = true;
+    wake.notify_all();
+    Ok(())
+}
+fn run() -> Result<(), Failure> {
+    let executable = std::env::current_exe().map_err(|_| Failure(Kind::Paths))?;
+    let options = ae_strom::launch::parse(std::env::args().skip(1), &executable)
+        .map_err(|_| Failure(Kind::Arguments))?;
+    if options.mode == PlaybackMode::Live && !cfg!(feature = "live-audio") {
+        return Err(Failure(Kind::AudioBuild));
     }
-    let restore = config::load_or_default(&config_path)?;
     let app = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_snapshot,
@@ -222,59 +296,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             save_ui_evidence
         ])
         .setup(move |app| {
-            let handle = app.handle().clone();
-            let sink = Arc::new(move |update| match update {
-                Update::State(s) => {
-                    let _ = handle.emit_to("main", "radio-state", s);
-                }
-                Update::Spectrum(s) => {
-                    let _ = handle.emit_to("main", "spectrum", s);
-                }
-            });
-            let controller = Controller::start(config_path.clone(), options.mode, sink)
-                .map_err(std::io::Error::other)?;
-            app.manage(Host {
-                controller,
-                data: options.data.clone(),
-                smoke: options.smoke || options.startup_probe,
-                layouts: Mutex::new(Vec::new()),
-                startup: Arc::new((
-                    Mutex::new(StartupState {
-                        host_ready: false,
-                        saved: restore
-                            .window_pos_valid
-                            .then_some((restore.window_x, restore.window_y)),
-                        evidence: None,
-                    }),
-                    Condvar::new(),
-                )),
-            });
-            let _window = tauri::WebviewWindowBuilder::from_config(
-                app.handle(),
-                &app.config().app.windows[0],
-            )?
-            .visible(false)
-            .background_color(tauri::window::Color(0, 0, 0, 255))
-            .data_directory(options.data.join("webview"))
-            .initialization_script(if options.startup_probe {
-                "window.__RADIO_STARTUP_PROBE__=true;window.__RADIO_SMOKE_AUTORUN__=false;"
-            } else if options.smoke {
-                "window.__RADIO_SMOKE_AUTORUN__=true;"
-            } else {
-                "window.__RADIO_SMOKE_AUTORUN__=false;"
-            })
-            .on_navigation(|url| {
-                matches!(
-                    (url.scheme(), url.host_str()),
-                    ("tauri", Some("localhost")) | ("http", Some("tauri.localhost"))
-                ) && url.port().is_none()
-            })
-            .build()?;
-            // No window is visible until the frontend has settled fonts/layout.
-            let host = app.state::<Host>();
-            let (lock, wake) = &*host.startup;
-            lock.lock().unwrap().host_ready = true;
-            wake.notify_all();
+            startup_failure::finish_setup(
+                initialize_player(app, options),
+                startup_failure::present,
+                |code| app.handle().exit(code),
+            );
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -296,7 +322,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _ => {}
             }
         })
-        .build(tauri::generate_context!())?;
+        .build(tauri::generate_context!())
+        .map_err(|_| Failure(Kind::Runtime))?;
     app.run(|handle, event| {
         if matches!(event, tauri::RunEvent::Exit) {
             if let Some(host) = handle.try_state::<Host>() {
@@ -309,24 +336,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
     if let Err(error) = run() {
-        eprintln!("Æ Strøm: {error}");
-        #[cfg(windows)]
-        {
-            #[link(name = "user32")]
-            extern "system" {
-                fn MessageBoxW(
-                    window: *mut std::ffi::c_void,
-                    text: *const u16,
-                    caption: *const u16,
-                    flags: u32,
-                ) -> i32;
-            }
-            let text:Vec<u16>=format!("Unable to start Æ Strøm. Keep the portable folder writable; no other profile was substituted.\n{error}").encode_utf16().chain(Some(0)).collect();
-            let caption: Vec<u16> = "Æ Strøm".encode_utf16().chain(Some(0)).collect();
-            unsafe {
-                MessageBoxW(std::ptr::null_mut(), text.as_ptr(), caption.as_ptr(), 0x10);
-            }
-        }
+        startup_failure::present(&error);
         std::process::exit(1);
     }
 }
