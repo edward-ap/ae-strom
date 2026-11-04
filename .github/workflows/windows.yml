@@ -1,0 +1,46 @@
+name: Windows checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22.14.0'
+          package-manager-cache: false
+      - name: Install pinned Rust toolchain
+        shell: cmd
+        run: rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+      - name: Select pinned Rust toolchain
+        run: rustup override set 1.96.0
+      - name: Install development dependencies
+        run: npm ci --include=dev --ignore-scripts
+      - name: Install synthetic test browser
+        run: npx playwright install chromium
+      - name: Check UI, vendor, font and icons with synthetic data
+        run: npm test
+      - name: Rust format
+        run: cargo fmt --check
+      - name: Rust isolated regressions
+        run: node scripts/release-cargo.js test --release --locked --all-targets
+      - name: Rust documentation examples
+        run: node scripts/release-cargo.js test --release --locked --doc
+      - name: Rust lint (documented inherited warnings allowed)
+        run: node scripts/release-cargo.js clippy --release --locked --all-targets
+      - name: Build full Windows application
+        run: node scripts/release-cargo.js build --release --locked --bin ae-strom
+      - name: Check publication binary
+        run: node scripts/check-release.js local-data/publication-target/release/ae-strom.exe

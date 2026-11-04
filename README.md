@@ -2,6 +2,10 @@
 
 Compact native Rust radio with Tæt UI and a Tauri WebView. Technical project/crate: ae-strom / ae_strom, version 0.1.0.
 
+## Download for Windows
+
+Portable Windows x64 builds are published on [GitHub Releases](https://github.com/edward-ap/ae-strom/releases). If no release is listed yet, use the source build below. Download **ae-strom.exe** and run it from a writable folder; WebView2 Runtime is required. No stations or personal settings are bundled. macOS and Linux binaries are not provided or verified.
+
 ## Run
 
 Double-click **ae-strom.exe** in the project root. It is the complete application, with native audio, UI, fonts and assets embedded. No launcher, flags, Node server or separate web folder is needed. Normal mode is **live**, startup is **Stopped**, and playback begins only with Play.
@@ -20,10 +24,10 @@ The commands below target **Windows x64**. Install a Rust MSVC toolchain and Mic
 
 ### Build the full EXE using the committed UI
 
-Replace `YOUR_REPOSITORY_URL` with this repository's clone URL, then run from a developer terminal:
+Run from a developer terminal:
 
 ```text
-git clone YOUR_REPOSITORY_URL ae-strom
+git clone https://github.com/edward-ap/ae-strom.git ae-strom
 cd ae-strom
 cargo build --release --locked --bin ae-strom
 ```
@@ -110,3 +114,7 @@ Normal 725×36, compact 102×36, Settings 725×258, EQ 725×257 logical px. Noto
 Tæt UI is pinned to published **taet-ui@0.6.0-rc.4**, components ESM, source bfd3ddcddf1cdc539397e5d2ac5ed3cb976e72c2. Runtime assets, public declarations, source hashes and npm integrity are checked. Technical dui CSS/DOM names are retained. See [BUILD.md](docs/BUILD.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [CONSUMER_NOTES.md](docs/CONSUMER_NOTES.md) and [VERIFICATION.md](docs/VERIFICATION.md).
 
 Typography: bundled standard Noto Sans variable at 12 px. [Font audit and native/macOS limits](docs/FONT_AUDIT.md) records actual loading/rendering evidence and intentional OS fallback.
+
+## License
+
+MIT; see [LICENSE](LICENSE). Binary release attribution and corresponding third-party source links: [third-party components](docs/THIRD_PARTY.md).

@@ -18,6 +18,21 @@ All UI files are already committed. There is no pre-build npm step or required f
 
 The output is `target/release/ae-strom.exe`, one complete application. Preserve an old EXE and close its player before copying the new file to the project root or another portable folder. Do not overwrite an active process. Runtime needs normal Windows system libraries and WebView2; no Node process, separate UI folder or launcher is shipped.
 
+## Publication candidate with remapped build paths
+
+A normal Cargo build can retain absolute source locations from the builder's Cargo registry and Rust toolchain. For a publication candidate, use Node 22+ and a clean environment without custom RUSTFLAGS, CARGO_ENCODED_RUSTFLAGS or RUSTDOCFLAGS:
+
+```text
+node scripts/release-cargo.js build --release --locked --bin ae-strom
+node scripts/release-cargo.js test --release --locked --all-targets
+node scripts/release-cargo.js test --release --locked --doc
+node scripts/check-release.js local-data/publication-target/release/ae-strom.exe
+```
+
+The wrapper supplies Rust's supported `--remap-path-prefix` for both Windows separator forms, mapping the user home, checkout, Cargo home and compiler sysroot to generic paths. On Windows it also sets MSVC's PDB alternate path to a filename. It changes no application features, config paths or audio settings. The separate output is `local-data/publication-target/release/ae-strom.exe`; existing root/target delivery files are untouched. An explicit CARGO_TARGET_DIR can select another isolated output directory.
+
+Path remapping is best effort, not an assertion of anonymity or byte-identical builds. Scan the final EXE (including ASCII and UTF-16 strings, PE debug paths and known private URLs), verify its resources and tests, and record its checksum before publication. Do not ship PDB/build directories, private profiles or logs. See [Rust path remapping](https://doc.rust-lang.org/rustc/remap-source-paths.html) for linker, environment-variable and generated-code limitations.
+
 ## Reproduce pinned Tæt vendor assets
 
 The published package is **taet-ui@0.6.0-rc.4**. It has no JS runtime dependencies. In this application it is declared under devDependencies because its source is consumed by the vendoring step; the running UI imports the committed ESM file, not the npm package.
@@ -86,3 +101,7 @@ Lockfiles and vendor manifests pin dependency/source inputs; toolchains/system S
 Two fresh local Git clones of source commit `54492a45bfae3acc85e8d35da685132e400612f6` were checked. Neither contained ignored profiles, binaries, node_modules or previous targets. The Cargo-only clone built the full release EXE in a new target directory with Node absent from its child PATH and no node_modules; locked Cargo registry sources were already cached. A separate developer clone used a fresh npm cache and successfully ran npm ci, vendor regeneration, type/syntax/integrity checks and all 76 browser tests. Regeneration changed no tracked file or lockfile.
 
 The matching Playwright browsers were already installed on this machine. The documented browser-install command was checked with `--dry-run`; a new browser download and full machine/toolchain provisioning were not performed. No player EXE, native acceptance PowerShell script, radio session or personal profile was opened. The full Windows EXE rebuilt successfully from tracked inputs under these prerequisites; a fresh OS and bitwise-identical PE output are not claimed.
+
+## Public CI
+
+The Windows checks workflow pins official checkout/setup-node actions by commit, Rust 1.96.0 and Node 22.14.0. It runs locked builds, Rust regressions/doc tests/fmt/Clippy and synthetic Chromium UI tests, then scans the complete EXE for user-profile/build paths, common credential signatures and non-filename CodeView/PDB records. It uses read-only repository permissions, no personal profiles or real stations, and does not publish releases. Passing CI is not native OS-input, audio-device or macOS acceptance.
