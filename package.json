@@ -9,15 +9,18 @@
     "test:syntax": "node scripts/check-syntax.js",
     "test:types": "tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --lib es2022,dom browser-tests/contracts.ts",
     "test:browser": "playwright test",
-    "test": "npm run test:syntax && npm run test:types && npm run test:vendor && npm run test:browser",
+    "test": "npm run test:syntax && npm run test:types && npm run test:vendor && npm run test:icons && npm run test:browser",
     "test:vendor": "node scripts/check-vendor.js",
-    "screenshots": "node scripts/capture-ui.js"
+    "screenshots": "node scripts/capture-ui.js",
+    "icons": "node scripts/generate-icons.js",
+    "test:icons": "node scripts/check-icons.js"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",
-    "typescript": "5.9.3",
+    "@tauri-apps/cli": "2.11.4",
+    "esbuild": "0.28.2",
     "taet-ui": "0.6.0-rc.4",
-    "esbuild": "0.28.2"
+    "typescript": "5.9.3"
   },
   "description": "Æ Strøm: compact native Rust radio with Tæt UI and Tauri",
   "engines": {

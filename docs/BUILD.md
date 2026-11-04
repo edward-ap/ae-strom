@@ -2,7 +2,7 @@
 
 ## Prerequisites and build inputs
 
-The verified platform is Windows x64. Use a Rust MSVC toolchain, Microsoft C++ Build Tools (Desktop development with C++) and a Windows SDK. Rust/Cargo 1.96.0, Node 22.14.0 and npm 11.8.0 were checked. Node 22+ is required only for vendoring, preview and JS/type/browser development checks. A compatible WebView2 Runtime is needed for running the native app. Follow [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/); no system tools are installed by this project's build.
+The verified platform is Windows x64. Use a Rust MSVC toolchain, Microsoft C++ Build Tools (Desktop development with C++) and a Windows SDK. Rust/Cargo 1.96.0, Node 22.14.0 and npm 11.8.0 were checked. Node 22+ is required only for vendoring, optional icon generation, preview and JS/type/browser development checks. A compatible WebView2 Runtime is needed for running the native app. Follow [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/); no system tools are installed by this project's build.
 
 Committed inputs include Cargo.toml/Cargo.lock, package.json/package-lock.json, the application `web` files, pinned `web/vendor` assets/types/licenses, provenance manifests, Tauri config and icon. Personal configs, EXEs, node_modules, target, generated schemas and caches are ignored and absent from a clean clone.
 
@@ -61,7 +61,11 @@ cargo test --release --locked --doc
 cargo clippy --release --locked --all-targets
 ```
 
-Browser installation is separate from WebView2 and is needed only for browser tests. npm test covers syntax/types/pinned vendor and 76 synthetic browser checks at 100/150% scaling. The current inherited Clippy warnings mean warnings-as-errors is not a passing gate. `npm run preview` starts a synthetic browser preview. Optional test helpers/examples are built with `--bins --examples`; they are not runtime application dependencies.
+Browser installation is separate from WebView2 and is needed only for browser tests. npm test covers syntax/types/pinned vendor and 78 synthetic browser checks at 100/150% scaling. The current inherited Clippy warnings mean warnings-as-errors is not a passing gate. `npm run preview` starts a synthetic browser preview. Optional test helpers/examples are built with `--bins --examples`; they are not runtime application dependencies.
+
+## Application icon generation
+
+The user's original artwork and reviewed transparent master are committed under icons. `@tauri-apps/cli` 2.11.4 is an additional exact devDependency used only for `npm run icons`; it does not change the Rust Tauri runtime or add a runtime frontend dependency. Run `npm run test:icons` to verify all desktop PNG/ICO/ICNS representations and the favicon. See [icons/README.md](../icons/README.md) for alpha cleanup, source provenance and repeatability. Cargo-only builds still need no npm command because the generated assets are committed.
 
 ## Settings and optional native acceptance
 

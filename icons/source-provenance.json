@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "original": {
+    "path": "AE-Strom.png",
+    "sha256": "29d4c58811b39a8fa01e10cec08d1fafc255168c01d1ff4fadc1afd015f1ab5d",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGB",
+    "preservedUnmodified": true
+  },
+  "transparentMaster": {
+    "path": "source.png",
+    "sha256": "3c0e8380213c6f9d1f5c522f12b5e70e43408d6e894b2e9606a76aaf02305a71",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA"
+  },
+  "transparencyTool": "built-in image_gen",
+  "prompt": "Use case: background-extraction. Edit the most recently displayed Æ Strøm radio icon (blue luminous rounded square with radio tower and waves). Remove ONLY the opaque black exterior outside the luminous rounded-square tile and replace it with actual alpha transparency. Preserve the opaque dark navy interior, exact radio tower and waves, luminous rim, colors, shape, proportions, placement and original framing. Do not redraw or redesign any part of the icon; do not crop, add text or remove its interior background. The four exterior corners must be fully transparent. Clean antialiased contour without a black/white matte or painted checkerboard; retain the narrow blue edge glow. This is a precise exterior cutout of the provided image, not a new icon."
+}

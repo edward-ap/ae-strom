@@ -44,7 +44,7 @@ npm run vendor
 npm run test:vendor
 ```
 
-`npm ci` already installs **taet-ui@0.6.0-rc.4**, esbuild and the test/type tools. No separate `npm install taet` step is needed. Keep optional dependencies enabled: esbuild uses its platform-specific binary package. Preserve **package-lock.json**; do not use `--omit=dev` for this workflow. npm lifecycle install hooks are disabled, while explicitly requested `npm run` commands still execute. See [npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/).
+`npm ci` already installs **taet-ui@0.6.0-rc.4**, esbuild, the optional icon CLI and the test/type tools. No separate `npm install taet` step is needed. Keep optional dependencies enabled: esbuild and the icon CLI use platform-specific binary packages. Preserve **package-lock.json**; do not use `--omit=dev` for this workflow. npm lifecycle install hooks are disabled, while explicitly requested `npm run` commands still execute. See [npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/).
 
 `npm run vendor` verifies the published package's integrity and pinned source hashes, regenerates the components ESM/CSS with **esbuild 0.28.2**, and checks the six canonical runtime assets and 85 declaration files against the committed manifest. It requires that manifest to exist. A clean clone already includes it; recover missing vendor/manifests from the same Git revision before regeneration. Regeneration should leave the tracked vendor files unchanged.
 
@@ -63,9 +63,11 @@ cargo test --release --locked --doc
 cargo clippy --release --locked --all-targets
 ```
 
-`npm test` runs syntax, public types, vendor integrity and synthetic browser tests at 100/150% scaling. Playwright Chromium is a **development test browser**, separate from the Windows WebView2 runtime. Existing inherited Clippy warnings are documented; `-D warnings` is not currently a passing gate.
+`npm test` runs syntax, public types, vendor integrity and synthetic browser tests at 100/150% scaling, including favicon transparency. Playwright Chromium is a **development test browser**, separate from the Windows WebView2 runtime. Existing inherited Clippy warnings are documented; `-D warnings` is not currently a passing gate.
 
 Browser preview is `npm run preview` and uses fake data. Optional native `.ps1` acceptance scripts are described in [BUILD.md](docs/BUILD.md); run them only where script policy permits. They are not required for Cargo compilation or the browser suite. Do not change or bypass Execution Policy to run them. The clone verification used no real radio or personal profile; macOS/native OS-input parity is not claimed.
+
+Application artwork and reproducible desktop formats: [icons/README.md](icons/README.md). Use `npm run icons` only when regenerating the committed icon assets; normal Cargo builds use those assets directly.
 
 ## Ultra-compact mode
 

@@ -1,0 +1,481 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "tool": "@tauri-apps/cli",
+    "version": "2.11.4",
+    "alphaQuantizationCleanup": "0..1 to 0 after resize; RGB and alpha 2..255 unchanged",
+    "icnsOrder": "sorted by four-byte member type"
+  },
+  "sourceProvenance": "icons/source-provenance.json",
+  "windowIcon": {
+    "path": "icons/32x32.png",
+    "width": 32,
+    "height": 32,
+    "rgbaFnv1a64": "8a23f0e8fb80df9d"
+  },
+  "files": [
+    {
+      "path": "icons/128x128.png",
+      "bytes": 39479,
+      "sha256": "0814dd5d086a0e25776fa397286c0e0e289e65bc41f01e0dcab113e0fdddd23a",
+      "kind": "png",
+      "images": [
+        {
+          "width": 128,
+          "height": 128,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 1658,
+          "partial": 14404,
+          "solid": 322,
+          "rgbaSha256": "dddbca663ce09261d209e987fdfe08d0dd210f335a33baa60afad8e1622509be"
+        }
+      ]
+    },
+    {
+      "path": "icons/128x128@2x.png",
+      "bytes": 137465,
+      "sha256": "8debd0cf31b055a25d2a8a21859b17728175812ca4d4033425cc1565b750ae46",
+      "kind": "png",
+      "images": [
+        {
+          "width": 256,
+          "height": 256,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 8119,
+          "partial": 56717,
+          "solid": 700,
+          "rgbaSha256": "6e180ed81db263f7f8e6eea4b647f6ff09c12fc90821e54ab4e3f95b8bd7efa1"
+        }
+      ]
+    },
+    {
+      "path": "icons/16x16.png",
+      "bytes": 1035,
+      "sha256": "294abaa267ff11c75bceef16897471df7b1f30935ec6f9338a164d3f30667732",
+      "kind": "png",
+      "images": [
+        {
+          "width": 16,
+          "height": 16,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 9,
+          "partial": 199,
+          "solid": 48,
+          "rgbaSha256": "b773aff53f0dd342574bc3e4e9e86698f0b45af9a87b3fc0acab595bca4e365d"
+        }
+      ]
+    },
+    {
+      "path": "icons/24x24.png",
+      "bytes": 1838,
+      "sha256": "4b1844acff1deaca9483eb7f2c751d8477689d3676f2ddb61a1c55123078acf7",
+      "kind": "png",
+      "images": [
+        {
+          "width": 24,
+          "height": 24,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 22,
+          "partial": 480,
+          "solid": 74,
+          "rgbaSha256": "ba7cf2d7d1da7c93feb4a34709972c322c8b94dda8f7ce2a15d65c5b280baf88"
+        }
+      ]
+    },
+    {
+      "path": "icons/32x32.png",
+      "bytes": 2886,
+      "sha256": "f45187246314800e6d158742026d03dfe9d47dd50f965d0cba581ba9432cbddc",
+      "kind": "png",
+      "images": [
+        {
+          "width": 32,
+          "height": 32,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 64,
+          "partial": 861,
+          "solid": 99,
+          "rgbaSha256": "4ddea29754b7d7e5e8f1a7cfd28f0a1c7e773107dc5f11d43088ae4b3c5da3fb"
+        }
+      ]
+    },
+    {
+      "path": "icons/48x48.png",
+      "bytes": 6801,
+      "sha256": "eabd3ec82a64c284989aea38d8cea588ccdd8b7ea42bade413a7b5840b9b6a6d",
+      "kind": "png",
+      "images": [
+        {
+          "width": 48,
+          "height": 48,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 160,
+          "partial": 2014,
+          "solid": 130,
+          "rgbaSha256": "7c6549dbc968d25e5e3bbc15d32d79336d94b8fff001e67547726283b66f175b"
+        }
+      ]
+    },
+    {
+      "path": "icons/64x64.png",
+      "bytes": 11290,
+      "sha256": "2717021d889774b72a105878b6e1085b4fcb8c3fc0e1e84b3f1dfcc996c34e80",
+      "kind": "png",
+      "images": [
+        {
+          "width": 64,
+          "height": 64,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 388,
+          "partial": 3506,
+          "solid": 202,
+          "rgbaSha256": "af966c6c41cdfb9d22dc3f42432bf41778f64211b8476aad71e92053345c8c7e"
+        }
+      ]
+    },
+    {
+      "path": "icons/icon.icns",
+      "bytes": 3164868,
+      "sha256": "e33a606357c0156e0a30fd0041835c398fb56a2e93ad0a2b7bd8492327197412",
+      "kind": "icns",
+      "images": [
+        {
+          "type": "ic07",
+          "width": 128,
+          "height": 128,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 1658,
+          "partial": 14404,
+          "solid": 322,
+          "rgbaSha256": "dddbca663ce09261d209e987fdfe08d0dd210f335a33baa60afad8e1622509be"
+        },
+        {
+          "type": "ic08",
+          "width": 256,
+          "height": 256,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 8119,
+          "partial": 56717,
+          "solid": 700,
+          "rgbaSha256": "6e180ed81db263f7f8e6eea4b647f6ff09c12fc90821e54ab4e3f95b8bd7efa1"
+        },
+        {
+          "type": "ic09",
+          "width": 512,
+          "height": 512,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 34570,
+          "partial": 226943,
+          "solid": 631,
+          "rgbaSha256": "2afb4f689c0aecfaaefe15a99623de864471ea19ac72d9eafead7910e18a0411"
+        },
+        {
+          "type": "ic10",
+          "width": 1024,
+          "height": 1024,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 139340,
+          "partial": 909147,
+          "solid": 89,
+          "rgbaSha256": "d1dbdff40a3ab0df416c0a75abb029df43f35d0fea0b5410ade03aa8fc3910b1"
+        },
+        {
+          "type": "ic11",
+          "width": 32,
+          "height": 32,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 64,
+          "partial": 861,
+          "solid": 99,
+          "rgbaSha256": "4ddea29754b7d7e5e8f1a7cfd28f0a1c7e773107dc5f11d43088ae4b3c5da3fb"
+        },
+        {
+          "type": "ic12",
+          "width": 64,
+          "height": 64,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 388,
+          "partial": 3506,
+          "solid": 202,
+          "rgbaSha256": "af966c6c41cdfb9d22dc3f42432bf41778f64211b8476aad71e92053345c8c7e"
+        },
+        {
+          "type": "ic13",
+          "width": 256,
+          "height": 256,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 8119,
+          "partial": 56717,
+          "solid": 700,
+          "rgbaSha256": "6e180ed81db263f7f8e6eea4b647f6ff09c12fc90821e54ab4e3f95b8bd7efa1"
+        },
+        {
+          "type": "ic14",
+          "width": 512,
+          "height": 512,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 34570,
+          "partial": 226943,
+          "solid": 631,
+          "rgbaSha256": "2afb4f689c0aecfaaefe15a99623de864471ea19ac72d9eafead7910e18a0411"
+        },
+        {
+          "type": "l8mk",
+          "width": 32,
+          "height": 32,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "s8mk",
+          "width": 16,
+          "height": 16,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "path": "icons/icon.ico",
+      "bytes": 161487,
+      "sha256": "5ab2b401d3254ca645ec539220a1ccdd94d67ee7f9061a218b3ac5ed65b65835",
+      "kind": "ico",
+      "images": [
+        {
+          "width": 32,
+          "height": 32,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 64,
+          "partial": 861,
+          "solid": 99,
+          "rgbaSha256": "4ddea29754b7d7e5e8f1a7cfd28f0a1c7e773107dc5f11d43088ae4b3c5da3fb"
+        },
+        {
+          "width": 16,
+          "height": 16,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 9,
+          "partial": 199,
+          "solid": 48,
+          "rgbaSha256": "b773aff53f0dd342574bc3e4e9e86698f0b45af9a87b3fc0acab595bca4e365d"
+        },
+        {
+          "width": 24,
+          "height": 24,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 22,
+          "partial": 480,
+          "solid": 74,
+          "rgbaSha256": "ba7cf2d7d1da7c93feb4a34709972c322c8b94dda8f7ce2a15d65c5b280baf88"
+        },
+        {
+          "width": 48,
+          "height": 48,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 160,
+          "partial": 2014,
+          "solid": 130,
+          "rgbaSha256": "7c6549dbc968d25e5e3bbc15d32d79336d94b8fff001e67547726283b66f175b"
+        },
+        {
+          "width": 64,
+          "height": 64,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 388,
+          "partial": 3506,
+          "solid": 202,
+          "rgbaSha256": "af966c6c41cdfb9d22dc3f42432bf41778f64211b8476aad71e92053345c8c7e"
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 8119,
+          "partial": 56717,
+          "solid": 700,
+          "rgbaSha256": "6e180ed81db263f7f8e6eea4b647f6ff09c12fc90821e54ab4e3f95b8bd7efa1"
+        }
+      ]
+    },
+    {
+      "path": "icons/icon.png",
+      "bytes": 499883,
+      "sha256": "f4386c85c375e10502e1f244bc7efd6c075479269760f97af46c74dedffdff2a",
+      "kind": "png",
+      "images": [
+        {
+          "width": 512,
+          "height": 512,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 34570,
+          "partial": 226943,
+          "solid": 631,
+          "rgbaSha256": "2afb4f689c0aecfaaefe15a99623de864471ea19ac72d9eafead7910e18a0411"
+        }
+      ]
+    },
+    {
+      "path": "web/app-icon.png",
+      "bytes": 2886,
+      "sha256": "f45187246314800e6d158742026d03dfe9d47dd50f965d0cba581ba9432cbddc",
+      "kind": "png",
+      "images": [
+        {
+          "width": 32,
+          "height": 32,
+          "corners": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "centerAlpha": 253,
+          "transparent": 64,
+          "partial": 861,
+          "solid": 99,
+          "rgbaSha256": "4ddea29754b7d7e5e8f1a7cfd28f0a1c7e773107dc5f11d43088ae4b3c5da3fb"
+        }
+      ]
+    }
+  ]
+}
