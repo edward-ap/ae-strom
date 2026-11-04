@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Keep standard TLS validation; use bounded registry retries without HTTP/2 multiplexing.
+env:
+  CARGO_NET_RETRY: '5'
+  CARGO_HTTP_MULTIPLEXING: 'false'
+
 jobs:
   windows:
     runs-on: windows-latest

@@ -105,3 +105,5 @@ The matching Playwright browsers were already installed on this machine. The doc
 ## Public CI
 
 The Windows checks workflow pins official checkout/setup-node actions by commit, Rust 1.96.0 and Node 22.14.0. It runs locked builds, Rust regressions/doc tests/fmt/Clippy and synthetic Chromium UI tests, then scans the complete EXE for user-profile/build paths, common credential signatures and non-filename CodeView/PDB records. It uses read-only repository permissions, no personal profiles or real stations, and does not publish releases. Passing CI is not native OS-input, audio-device or macOS acceptance.
+
+The first public CI attempt stopped before Rust compilation when crates.io closed a Schannel TLS connection. The Windows workflow uses Cargo's bounded network retries and disables HTTP/2 multiplexing for registry requests; certificate verification, revocation checks, HTTPS endpoints and system security settings are unchanged. This is a transport setting local to CI, not a successful network-recovery claim until the new run completes.

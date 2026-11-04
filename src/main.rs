@@ -284,6 +284,7 @@ fn run() -> Result<(), Failure> {
     if options.mode == PlaybackMode::Live && !cfg!(feature = "live-audio") {
         return Err(Failure(Kind::AudioBuild));
     }
+    ae_strom::webview_prerequisite::ensure_available()?;
     let app = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_snapshot,

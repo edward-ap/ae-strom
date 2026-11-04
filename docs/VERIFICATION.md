@@ -41,3 +41,9 @@ The optional gradient was trialed only in a synthetic preview, not shipped. Curr
 ## Current font audit
 
 All app typography declarations now use the standard Tæt tokens, including native option DOM and hidden status. Actual custom-font use is confirmed by Chromium and loaded font/resource metadata in a copied single EXE on Windows. See FONT_AUDIT.md for the precise face/source, fallback and native select/title-tooltip exceptions. Mac/WKWebView was not executed and parity is not claimed. The current audit did not access personal config or start audio; the existing external player kept running.
+
+## Windows WebView2 prerequisite notification
+
+The app now calls the public `tauri::webview_version()` before Tauri Builder/profile/controller initialization. Failure or an empty/zero/malformed version yields the sanitized WEBVIEW2-RUNTIME native startup message with Microsoft's Evergreen download URL. No installer/download/browser-opening code is added. Existing setup/runtime failures retain their fallback messages.
+
+Injected probe tests cover installed/channel versions, unavailable/error/malformed results and notification-before-exit. These are logic/notification-dispatch tests, not a physical absent-Runtime environment. The installed system Runtime was not removed, disabled or redirected; missing-Runtime GUI presentation remains unverified on a genuinely clean machine.

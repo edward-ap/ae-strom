@@ -17,6 +17,7 @@ pub enum Kind {
     ProfileBusy,
     Migration,
     Controller,
+    WebViewRuntime,
     WebView,
     Runtime,
 }
@@ -71,6 +72,7 @@ impl Failure {
             Kind::ProfileBusy => "PROFILE-IN-USE",
             Kind::Migration => "MIGRATION",
             Kind::Controller => "PLAYER-INIT",
+            Kind::WebViewRuntime => "WEBVIEW2-RUNTIME",
             Kind::WebView => "WEBVIEW",
             Kind::Runtime => "RUNTIME",
         }
@@ -89,6 +91,7 @@ impl Failure {
   Kind::ProfileBusy=>"This profile is already open. Close its other player window before starting another copy. Existing settings were preserved.",
   Kind::Migration=>"The previous profile, backup or migration record could not be verified, or changed during preparation. Keep both configs and backups. Select an explicit copied profile with --data-dir; no automatic choice was made.",
   Kind::Controller=>"The native player could not initialize. Check the selected profile and available audio output. Keep your config and backups; no alternate profile was selected.",
+  Kind::WebViewRuntime=>"Microsoft Edge WebView2 Runtime is unavailable for this Windows user. Install or repair the Evergreen Runtime from the official Microsoft page:\n\nhttps://developer.microsoft.com/en-us/microsoft-edge/webview2/\n\nThe player will not download or install it automatically. Close this message, install the Runtime yourself, then start the player again.",
   Kind::WebView=>"The player window could not initialize. Check the Windows WebView2 Runtime and writable AppData storage. Keep your config and backups.",
   Kind::Runtime=>"The desktop runtime could not initialize. Check Windows WebView2 availability and user storage access. Keep your config and backups.",
  }
@@ -175,6 +178,7 @@ mod tests {
             Kind::ProfileBusy,
             Kind::Migration,
             Kind::Controller,
+            Kind::WebViewRuntime,
             Kind::WebView,
             Kind::Runtime,
         ] {

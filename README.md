@@ -6,6 +6,10 @@ Compact native Rust radio with Tæt UI and a Tauri WebView. Technical project/cr
 
 Portable Windows x64 builds are published on [GitHub Releases](https://github.com/edward-ap/ae-strom/releases). If no release is listed yet, use the source build below. Download **ae-strom.exe** and run it from a writable folder; WebView2 Runtime is required. No stations or personal settings are bundled. macOS and Linux binaries are not provided or verified.
 
+### If WebView2 is unavailable
+
+Before preparing a profile or starting Tauri/playback, the Windows app queries the WebView2 loader through Tauri's public API. An unavailable, failed or invalid version result produces a native **WEBVIEW2-RUNTIME** startup error with the [official Microsoft Evergreen download page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). The app does not download, install or open an installer automatically. Install/repair the Runtime yourself, then restart the player. Edge Stable alone is not a replacement for the Runtime.
+
 ## Run
 
 Double-click **ae-strom.exe** in the project root. It is the complete application, with native audio, UI, fonts and assets embedded. No launcher, flags, Node server or separate web folder is needed. Normal mode is **live**, startup is **Stopped**, and playback begins only with Play.
