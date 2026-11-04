@@ -1,17 +1,84 @@
 # Build and deployment
 
-Development uses Node 22+, Rust MSVC and Windows C++ tools/SDK. The runnable distribution needs normal Windows system libraries and WebView2. No Node/npm process or separate application DLL bundle is required.
+## Prerequisites and build inputs
 
-Use npm ci --ignore-scripts, npm run vendor and npm test. Vendor generation uses pinned taet-ui 0.6.0-rc.4 and esbuild 0.28.2; it verifies npm/source integrity, 6 canonical assets, 85 declaration files and the profile facade. Generated maps stay ignored; do not combine another BaseControl/profile instance or edit vendor bytes.
+The verified platform is Windows x64. Use a Rust MSVC toolchain, Microsoft C++ Build Tools (Desktop development with C++) and a Windows SDK. Rust/Cargo 1.96.0, Node 22.14.0 and npm 11.8.0 were checked. Node 22+ is required only for vendoring, preview and JS/type/browser development checks. A compatible WebView2 Runtime is needed for running the native app. Follow [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/); no system tools are installed by this project's build.
 
-live-audio and custom-protocol are default Cargo features. Run cargo fmt --check, cargo test --release --locked --all-targets, cargo test --release --locked --doc and cargo clippy --release --locked --all-targets. Build the application with cargo build --release --locked --bin ae-strom. Add --offline when sources are cached. Test helpers/examples are optional development artifacts built with --bins --examples.
+Committed inputs include Cargo.toml/Cargo.lock, package.json/package-lock.json, the application `web` files, pinned `web/vendor` assets/types/licenses, provenance manifests, Tauri config and icon. Personal configs, EXEs, node_modules, target, generated schemas and caches are ignored and absent from a clean clone.
 
-The full application is target/release/ae-strom.exe. Canonical local delivery is the same full file at the project root, ae-strom.exe. Preserve the old EXE before copying and do not overwrite an active process. No launcher is needed. The former launcher source is removed and its binaries retained only in ignored rollback.
+## Cargo-only production build
 
-Normal startup defaults live/stopped and portable local-data/player beside the EXE. Cargo's target/release build shares the project-root profile only when Cargo.toml and src/main.rs exist at that root. Ordinary portable folders need no source markers. Explicit --fake uses local-data/preview, and --data-dir overrides the profile with an absolute path. No AppData/preview fallback is used for a normal launch. If the folder cannot be written, startup reports an error rather than substituting another profile.
+From the repository root:
 
-To retain stations while moving the application, move local-data/player/config.json with the EXE, or use an explicit data directory. WebView cache/profile data is generated in the same profile; private configs/logs/caches and all EXEs stay ignored. No station/profile data is embedded during compilation.
+```text
+cargo build --release --locked --bin ae-strom
+```
 
-scripts/native-smoke.ps1 runs the genuine Tauri/WebView UI with explicit --fake in a fresh synthetic directory. scripts/single-exe-smoke.ps1 deploys only the full EXE into an isolated folder containing spaces, starts it from an unrelated cwd, and verifies default live/stopped mode, loaded assets, station/EQ schema and settings save/reload across two runs. No audio is played. The internal --startup-smoke path is restricted to marked synthetic fixtures and must not be pointed at personal profiles. Timeouts are uncertain own launches: inspect their PID/evidence before retrying.
+All UI files are already committed. There is no pre-build npm step or required frontend build server; Cargo embeds `web` into the release EXE. `live-audio` and `custom-protocol` are defaults. Use `--offline` only after the locked registry sources have been downloaded. The normal Cargo command does not require Node or node_modules.
 
-The separate ae-strom-live-check development tool requires --confirm-live --url <approved URL> --data-dir <fresh absolute directory>. It is not needed to run the app. Use only an approved stream with no competing player; it performs two bounded phases at app volume 10%, Stop/shutdown and worker checks. The profile-verify example operates only on a fresh audit COPY because loading can normalize that copy. It checks exact JSON roundtrip offline and does not fetch station URLs.
+The output is `target/release/ae-strom.exe`, one complete application. Preserve an old EXE and close its player before copying the new file to the project root or another portable folder. Do not overwrite an active process. Runtime needs normal Windows system libraries and WebView2; no Node process, separate UI folder or launcher is shipped.
+
+## Reproduce pinned Tæt vendor assets
+
+The published package is **taet-ui@0.6.0-rc.4**. It has no JS runtime dependencies. In this application it is declared under devDependencies because its source is consumed by the vendoring step; the running UI imports the committed ESM file, not the npm package.
+
+```text
+npm ci --include=dev --ignore-scripts
+npm run vendor
+npm run test:vendor
+git diff --exit-code -- web/vendor package.json package-lock.json provenance/taet-ui-rc4-source.json
+```
+
+`npm ci` installs the exact package/tool versions and verifies locked npm integrity without updating manifests. Keep optional dependencies enabled for the esbuild platform binary; the tested `--ignore-scripts` installation does not need a postinstall download fallback. A separate package installation is unnecessary. Lifecycle hooks remain disabled; explicitly requested npm run commands still run.
+
+The generator verifies all 304 pinned published source files, builds the components/foundation ESM profile using esbuild 0.28.2, rejects external runtime imports, and verifies six runtime assets, 85 declarations and the public type facade. The CSS build copies Noto Sans and OFL licensing. Source maps remain under ignored `.gen`.
+
+The manifest is a required committed input. If `web/vendor` or its manifest is missing/corrupt, recover it from the same Git revision, preserving any intentional local edits first; then run the commands above. The generator reproduces an already-reviewed pin and will not invent new canonical hashes.
+
+## Framework version changes
+
+There is no automatic framework-upgrade script. A package-version bump alone is rejected. A reviewed upgrade must coordinate:
+
+- package.json and package-lock.json;
+- the published-source package/version/commit/integrity/files in `provenance/taet-ui-rc4-source.json` (and references if renamed);
+- canonical runtime/type hashes and identity in `web/vendor/manifest.json`;
+- version/profile guards and build inputs in `scripts/vendor-taet.js` and `scripts/check-vendor.js`;
+- the framework summary/references in SOURCE_PROVENANCE.json and current documentation;
+- regenerated runtime/types/font/licenses and consumer compatibility checks.
+
+Validate the candidate release in isolation before changing the pin. Keep exactly one components/foundation runtime and BaseControl identity for the app-owned SpectrumAnalyzer/ChannelIndicator. Preserve license notices. Do not relax hash guards or silently patch vendor bytes to make an update pass.
+
+## Development checks
+
+After npm ci, install the matching Playwright browser if absent:
+
+```text
+npx playwright install chromium
+npm test
+cargo fmt --check
+cargo test --release --locked --all-targets
+cargo test --release --locked --doc
+cargo clippy --release --locked --all-targets
+```
+
+Browser installation is separate from WebView2 and is needed only for browser tests. npm test covers syntax/types/pinned vendor and 76 synthetic browser checks at 100/150% scaling. The current inherited Clippy warnings mean warnings-as-errors is not a passing gate. `npm run preview` starts a synthetic browser preview. Optional test helpers/examples are built with `--bins --examples`; they are not runtime application dependencies.
+
+## Settings and optional native acceptance
+
+Normal startup is live-capable but Stopped. Config is adjacent `config.json`; Windows WebView2 data is in per-profile user AppData. A Cargo target/release executable uses the project-root profile only when the Cargo source markers are present. A plain portable copy uses its own directory. `--fake` is explicit and defaults to separate local-data/preview; `--data-dir` explicitly selects an absolute profile. No profile fallback occurs after a validation/write/conflict error. See [INSTALL.md](INSTALL.md) and [CONFIG_STORAGE.md](CONFIG_STORAGE.md).
+
+Native acceptance scripts are optional developer tools and require an environment where PowerShell script execution is permitted. Do not change or bypass policy to run them. The current environment blocks them; completed Rust/browser checks must not be reported as complete native coverage.
+
+`scripts/native-smoke.ps1` uses fake playback in a fresh profile. `scripts/single-exe-smoke.ps1` tests a synthetic portable migration and save/restart from another working directory, never requesting audio. Its internal startup-smoke marker is restricted to synthetic fixtures. A timeout is an uncertain own launch: inspect its process/evidence before retrying. Manual native checks can use isolated candidate copies as described by delivery evidence.
+
+The optional live-check tool requires explicit approved stream input and an isolated profile; it is not part of clean-clone build verification. The profile-verify example operates on an explicitly selected copy, checks canonical JSON save/load roundtrip without network, and reports legacy normalization differences. Normal `load_or_default` decoding is read-only; startup preparation owns verified migration writes. No personal station data is needed to reproduce the binary.
+
+## Reproducibility limits
+
+Lockfiles and vendor manifests pin dependency/source inputs; toolchains/system SDKs are external prerequisites. Cargo can use a pre-existing registry cache for an offline clean-clone build. Browser tests can use an already-installed matching Playwright cache. A clean checkout is not a newly provisioned machine. Windows PE/debug timestamps and PDB GUIDs can change whole-EXE SHA despite identical code/resources; bitwise-identical executables are not promised. macOS and physical native OS-input parity have not been established by these Windows checks.
+
+## Clean-clone check, 2026-11-04
+
+Two fresh local Git clones of source commit `54492a45bfae3acc85e8d35da685132e400612f6` were checked. Neither contained ignored profiles, binaries, node_modules or previous targets. The Cargo-only clone built the full release EXE in a new target directory with Node absent from its child PATH and no node_modules; locked Cargo registry sources were already cached. A separate developer clone used a fresh npm cache and successfully ran npm ci, vendor regeneration, type/syntax/integrity checks and all 76 browser tests. Regeneration changed no tracked file or lockfile.
+
+The matching Playwright browsers were already installed on this machine. The documented browser-install command was checked with `--dry-run`; a new browser download and full machine/toolchain provisioning were not performed. No player EXE, native acceptance PowerShell script, radio session or personal profile was opened. The full Windows EXE rebuilt successfully from tracked inputs under these prerequisites; a fresh OS and bitwise-identical PE output are not claimed.

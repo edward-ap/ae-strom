@@ -14,24 +14,58 @@ The previous **local-data/player/config.json** is supported without modifying it
 
 The development target/release EXE uses the project-root config when normal Cargo source markers exist. A plain distribution uses its own EXE directory, independently of the working directory. **--data-dir <absolute-directory>** explicitly selects that directory's config and disables previous-profile discovery. Fake playback remains opt-in with **--fake**, using separate local-data/preview by default; its WebView cache is still in per-profile AppData. **--import-config <source-file>** validates into a fresh destination and never overwrites a different existing config. There is no fallback to an empty or alternate profile after a parse, schema, conflict or write error.
 
-## Build and test
+## Build and test from a clean clone
 
-Use Rust MSVC/Windows SDK and Node 22+ for development. Lockfiles are required.
+The commands below target **Windows x64**. Install a Rust MSVC toolchain and Microsoft C++ Build Tools with the Desktop development with C++ workload and a Windows SDK. The checked toolchain is Rust/Cargo **1.96.0**. Windows WebView2 Runtime is needed to run the app or native UI checks. See the [official Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-```powershell
-npm ci --ignore-scripts
+### Build the full EXE using the committed UI
+
+Replace `YOUR_REPOSITORY_URL` with this repository's clone URL, then run from a developer terminal:
+
+```text
+git clone YOUR_REPOSITORY_URL ae-strom
+cd ae-strom
+cargo build --release --locked --bin ae-strom
+```
+
+This path needs **no Node/npm installation or frontend generation**: all application JS/CSS and pinned Tæt assets are committed under `web/`. Cargo embeds them into **target/release/ae-strom.exe**. `live-audio` and `custom-protocol` are default features. Cargo downloads locked Rust dependencies on the first build; add `--offline` only when those sources are already cached. Preserve **Cargo.lock**.
+
+Copy the full EXE to a writable portable folder after preserving the previous version and closing its player. A clean clone contains no personal stations; configure or explicitly import your own settings. See [installation/profile selection](docs/INSTALL.md). No application launch is required to build.
+
+### Where Tæt comes from
+
+The npm package is **taet-ui**, pinned to **0.6.0-rc.4** in [package.json](package.json) and [package-lock.json](package-lock.json). It is a **development dependency** used to reproduce vendored assets. Runtime imports use **web/vendor/taet-ui.js** and **web/vendor/taet-ui.css**, with bundled fonts, declarations and licenses; they do not resolve `node_modules` or contact npm.
+
+For development, install Node **22+** with npm, then use the lockfile:
+
+```text
+npm ci --include=dev --ignore-scripts
 npm run vendor
+npm run test:vendor
+```
+
+`npm ci` already installs **taet-ui@0.6.0-rc.4**, esbuild and the test/type tools. No separate `npm install taet` step is needed. Keep optional dependencies enabled: esbuild uses its platform-specific binary package. Preserve **package-lock.json**; do not use `--omit=dev` for this workflow. npm lifecycle install hooks are disabled, while explicitly requested `npm run` commands still execute. See [npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/).
+
+`npm run vendor` verifies the published package's integrity and pinned source hashes, regenerates the components ESM/CSS with **esbuild 0.28.2**, and checks the six canonical runtime assets and 85 declaration files against the committed manifest. It requires that manifest to exist. A clean clone already includes it; recover missing vendor/manifests from the same Git revision before regeneration. Regeneration should leave the tracked vendor files unchanged.
+
+Upgrading Tæt is a separate reviewed vendoring change, not an automatic update command. The package/lockfile, published-source provenance, expected asset/type hashes and version guards in the generator/checker must be updated together. The current regeneration script deliberately accepts only the pinned rc.4 delivery. See [BUILD.md](docs/BUILD.md) for the files involved.
+
+### Run development checks
+
+Browser tests additionally need the Playwright Chromium version matching the lockfile. If it is not already cached, install it once using the [official browser installer](https://playwright.dev/docs/browsers):
+
+```text
+npx playwright install chromium
 npm test
 cargo fmt --check
 cargo test --release --locked --all-targets
 cargo test --release --locked --doc
 cargo clippy --release --locked --all-targets
-cargo build --release --locked --bin ae-strom
 ```
 
-live-audio and custom-protocol are default features. The build output is target/release/ae-strom.exe. Copy the full EXE to the project root after preserving the previous version and checking it is not active. Test tools/examples can be built with --bins --examples; they are not application dependencies.
+`npm test` runs syntax, public types, vendor integrity and synthetic browser tests at 100/150% scaling. Playwright Chromium is a **development test browser**, separate from the Windows WebView2 runtime. Existing inherited Clippy warnings are documented; `-D warnings` is not currently a passing gate.
 
-Browser preview is `npm run preview` and stays synthetic. `scripts/native-smoke.ps1` runs explicit --fake checks in a fresh profile. `scripts/single-exe-smoke.ps1` copies only the full EXE into an isolated portable folder and verifies default live/stopped mode plus save/restart without playing audio. Its internal startup-smoke flag accepts only a marked synthetic fixture profile.
+Browser preview is `npm run preview` and uses fake data. Optional native `.ps1` acceptance scripts are described in [BUILD.md](docs/BUILD.md); run them only where script policy permits. They are not required for Cargo compilation or the browser suite. Do not change or bypass Execution Policy to run them. The clone verification used no real radio or personal profile; macOS/native OS-input parity is not claimed.
 
 ## Ultra-compact mode
 
