@@ -2,6 +2,12 @@
 
 Normal double-click startup is live-capable but stopped. It never starts a station automatically.
 
+## Runtime save timing
+
+Settings apply to playback immediately. A dedicated writer coalesces pending config changes after 300 ms of quiet, with a one-second scheduling cap during continuous edits; disk I/O does not run on the controller. Changing only the track title, or receiving the same station name/metadata strategy again, does not write config. There is at most one active write and one pending config.
+
+Normal shutdown forces the latest config to disk, waiting for any older write first. A failed background save appears in the UI; a failed shutdown save keeps the app open for correction/retry. A successful later save clears the storage error. Forced termination or power loss can lose changes still pending or in flight. The scheduling cap does not bound a slow or stalled filesystem operation.
+
 ## Locations
 
 - `ae-strom.exe` and `config.json` are portable application/settings files.
@@ -92,3 +98,5 @@ The new candidate and fresh manual error fixtures are recorded in ignored `local
 The final rebuilt executable is 18,642,944 bytes, SHA256 `1c6132b7d33da8063123f494a26006247b9c5adeb7e942e9cad0a5ef4467517d`. The manually checked notification candidate had SHA256 `13f3c44288fd0320d1153c86dc7a9f65a6b859822bf718a458f8ed32a4d1fcde`. A byte-level PE comparison found exactly 24 differing bytes, confined to COFF/debug timestamps and the RSDS PDB GUID; every other byte, including code and embedded resources, matches. Whole-EXE bitwise reproducibility is therefore not claimed.
 
 See [installation and explicit profile selection](INSTALL.md). Delivery did not launch the application, change a real installation config, choose between two existing profiles, or clear old WebView data. Immediate binary rollback is available using the saved previous EXE; the unchanged previous profile is still retained. Keep new settings as well if rolling back after further use.
+
+Compatibility diagnostics and the safe offline checker are described in [CONFIG_COMPATIBILITY.md](CONFIG_COMPATIBILITY.md). These source changes do not imply a new binary release.

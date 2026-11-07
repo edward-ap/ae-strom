@@ -77,6 +77,24 @@ Browser preview is `npm run preview` and uses fake data. Optional native `.ps1` 
 
 Application artwork and reproducible desktop formats: [icons/README.md](icons/README.md). Use `npm run icons` only when regenerating the committed icon assets; normal Cargo builds use those assets directly.
 
+For the standalone CMD metadata inspector, see [icy_peek](docs/ICY_DIAGNOSTICS.md).
+It logs ICY headers, raw blocks and track changes without opening an audio device
+or modifying the player's profile. See [CHANGELOG.md](CHANGELOG.md) for changes.
+
+The player requests ICY on the audio connection and uses it exclusively when
+the server advertises `icy-metaint`. Otherwise it reads the played stream's
+container tags, including FLAC/Ogg title updates. Configured
+`metadataType`/`metadataUrl` and automatic discovery are fallback sources only
+when neither supplies a track title. Independent fallback streams have no
+universal synchronization guarantee. Container station names fill empty config
+names; existing names are preserved.
+
+Settings station fields show the saved station name while unfocused, or the URL
+when no name is known. Focusing a field reveals its stream URL for editing;
+leaving restores the name. Only genuine edits are saved on Enter or blur.
+Unsaved or rejected URL drafts remain visible for correction, and metadata
+updates do not overwrite a focused editor's text or selection.
+
 ## Ultra-compact mode
 
 Click the **double-chevron button to the left of Play/Stop** to collapse the same player window to **102 × 36 logical pixels**. Only the expand chevron, Play/Stop button and five-band spectrum remain visible. Physical pixel dimensions depend on Windows display scaling.
