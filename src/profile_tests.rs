@@ -358,7 +358,14 @@ fn real_pre_window_failures_reach_safe_dialog_then_exit_without_config_changes()
     value["volume"] = "PRIVATE_SENTINEL".into();
     let bytes = serde_json::to_vec(&value).unwrap();
     fs::write(&f.path, &bytes).unwrap();
-    verify(f.prepare().err().unwrap(), Kind::ConfigInvalid);
+    verify(
+        f.prepare().err().unwrap(),
+        Kind::ConfigField(crate::config_issue::ConfigIssue {
+            path: crate::config_issue::FieldPath::Root("volume"),
+            reason: "Expected a nonnegative integer within the supported storage type.",
+            structure: true,
+        }),
+    );
     assert_eq!(fs::read(&f.path).unwrap(), bytes);
     let f = Fixture::new();
     let bytes = raw(&f.path, &station());

@@ -15,6 +15,8 @@ pub enum ConfigError {
     Io(#[from] std::io::Error),
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("{0}")]
+    Issue(crate::config_issue::ConfigIssue),
 }
 
 /// Read and normalize in memory only. Startup preparation owns backup/migration writes.
@@ -39,7 +41,7 @@ pub(crate) fn stored_value(cfg: &Config) -> serde_json::Value {
 /// Both historical layouts are accepted; unknown/duplicate/missing storage fields fail closed.
 pub fn decode_compatible(raw: &str) -> Result<Config, ConfigError> {
     let value = document_value(raw)?;
-    let mut cfg: Config = serde_json::from_value(value)?;
+    let mut cfg: Config = serde_json::from_value(value.clone())?;
     if let Some(presets) = presets_from_station_banks(raw)? {
         cfg.presets = presets;
     }
@@ -49,7 +51,7 @@ pub fn decode_compatible(raw: &str) -> Result<Config, ConfigError> {
         station.url = station.url.trim().to_owned();
         station.metadata_url = station.metadata_url.trim().to_owned();
     }
-    validate(&cfg)?;
+    validate(&cfg).map_err(|error| remap_issue_to_document(error, &value))?;
     Ok(cfg)
 }
 
@@ -282,17 +284,32 @@ fn presets_from_station_banks(json: &str) -> Result<Option<Vec<StationPreset>>, 
     let mut presets = Vec::new();
 
     let mut seen = std::collections::HashSet::new();
-    for bank in banks {
+    for (bank_pos, bank) in banks.into_iter().enumerate() {
+        use crate::config_issue::{value, FieldPath as P};
+        let bank_path = P::Bank {
+            index: bank_pos,
+            field: "bank",
+        };
         if bank.bank.chars().count() != 1 {
-            return Err(invalid("Invalid bank label"));
+            return Err(value(bank_path, "Expected exactly one A-Z bank letter."));
         }
-        let bank_idx = parse_bank_label(&bank.bank).ok_or_else(|| invalid("Invalid bank label"))?;
+        let bank_idx = parse_bank_label(&bank.bank)
+            .ok_or_else(|| value(bank_path, "Expected an A-Z bank letter."))?;
 
-        for slot in bank.slots {
-            let slot_idx = parse_slot_key(&slot.key).ok_or_else(|| invalid("Invalid slot key"))?;
+        for (slot_pos, slot) in bank.slots.into_iter().enumerate() {
+            let key_path = P::Slot {
+                bank: bank_pos,
+                slot: slot_pos,
+                field: "key",
+            };
+            let slot_idx = parse_slot_key(&slot.key)
+                .ok_or_else(|| value(key_path, "Expected a slot key 1-9 or 0."))?;
             let abs_idx = bank_idx * STATIONS_PER_BANK + slot_idx;
             if !seen.insert(abs_idx) {
-                return Err(invalid("Duplicate bank/slot assignment"));
+                return Err(value(
+                    key_path,
+                    "Duplicate bank/slot assignment; no station was overwritten.",
+                ));
             }
             while presets.len() <= abs_idx {
                 presets.push(empty_station_preset());
@@ -649,56 +666,143 @@ fn invalid(message: &str) -> ConfigError {
     std::io::Error::new(std::io::ErrorKind::InvalidData, message).into()
 }
 pub fn validate_stream_url(value: &str) -> Result<(), String> {
-    if value.len() > 16_384 || value.chars().any(char::is_whitespace) {
-        return Err("Invalid stream URL length or whitespace".into());
+    stream_url_reason(value).map_err(str::to_owned)
+}
+fn stream_url_reason(value: &str) -> Result<(), &'static str> {
+    if value.len() > 16_384 {
+        return Err("URL exceeds the supported 16384-byte limit; it was not truncated.");
     }
-    let url = url::Url::parse(value).map_err(|_| "Invalid HTTP(S) stream URL".to_owned())?;
+    if value.trim() != value || value.chars().any(char::is_control) {
+        return Err("URL contains surrounding whitespace or control characters.");
+    }
+    let url = url::Url::parse(value)
+        .map_err(|_| "URL cannot be parsed as an absolute HTTP(S) address.")?;
     if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none_or(str::is_empty) {
-        return Err("Use an absolute HTTP(S) stream URL with a host".into());
+        return Err("URL must use HTTP or HTTPS and include a host.");
     }
+    // Literal spaces in a path/query are accepted by both legacy URL and current
+    // HTTP clients. The original string is retained; Url performs request encoding.
     Ok(())
 }
-/// Validation is shared by normal loading and explicit imports. No source file
-/// is rewritten until the complete decoded configuration has passed this gate.
+
+/// Validate without changing values or substituting a different profile.
 pub fn validate(cfg: &Config) -> Result<(), ConfigError> {
-    if cfg.volume > 100 || cfg.last_bank >= 26 || cfg.last_preset >= 10 || cfg.presets.len() > 260 {
-        return Err(invalid("Configuration values are out of range"));
+    use crate::config_issue::{value, FieldPath as P};
+    if cfg.volume > 100 {
+        return Err(value(
+            P::Root("volume"),
+            "Expected an integer from 0 to 100.",
+        ));
+    }
+    if cfg.last_bank >= 26 {
+        return Err(value(
+            P::Root("lastBank"),
+            "Expected a bank index from 0 to 25.",
+        ));
+    }
+    if cfg.last_preset >= 10 {
+        return Err(value(
+            P::Root("lastPreset"),
+            "Expected a slot index from 0 to 9.",
+        ));
+    }
+    if cfg.presets.len() > 260 {
+        return Err(value(
+            P::Root("presets"),
+            "More than 260 station slots cannot be preserved in A-Z banks.",
+        ));
     }
     let mut names = crate::presets::BUILTIN_EQ_PRESETS
         .iter()
         .map(|p| p.name.to_ascii_lowercase())
         .collect::<std::collections::HashSet<_>>();
-    for preset in &cfg.custom_eq_presets {
-        if preset.name.trim() != preset.name
-            || preset.name.is_empty()
-            || preset.name.len() > 128
-            || preset.name.chars().any(char::is_control)
-            || !names.insert(preset.name.to_ascii_lowercase())
-        {
-            return Err(invalid("Duplicate, reserved or invalid custom EQ name"));
+    for (index, preset) in cfg.custom_eq_presets.iter().enumerate() {
+        // Existing legacy names may exceed the new editor's 128-byte creation
+        // limit. Preserve them exactly; creation still uses validate_custom_eq_name.
+        if preset.name.trim().is_empty() || preset.name.chars().any(char::is_control) {
+            return Err(value(
+                P::CustomEq {
+                    index,
+                    field: "name",
+                },
+                "Custom EQ name must be nonempty and contain no control characters.",
+            ));
         }
-        if !std::iter::once(&preset.preamp)
-            .chain(preset.bands.iter())
-            .all(|v| v.is_finite() && (-15.0..=15.0).contains(v))
-        {
-            return Err(invalid("EQ values must be finite and within -15..15 dB"));
+        if !names.insert(preset.name.to_ascii_lowercase()) {
+            return Err(value(P::CustomEq { index, field: "name" }, "Custom EQ names collide under case-insensitive matching; no curve was dropped or guessed."));
+        }
+        if !preset.preamp.is_finite() || !(-15.0..=15.0).contains(&preset.preamp) {
+            return Err(value(
+                P::CustomEq {
+                    index,
+                    field: "preamp",
+                },
+                "Expected a finite gain within -15..15 dB; it was not clamped.",
+            ));
+        }
+        for (band, gain) in preset.bands.iter().enumerate() {
+            if !gain.is_finite() || !(-15.0..=15.0).contains(gain) {
+                return Err(value(
+                    P::EqBand { index, band },
+                    "Expected a finite gain within -15..15 dB; it was not clamped.",
+                ));
+            }
         }
     }
-    for station in &cfg.presets {
+    for (index, station) in cfg.presets.iter().enumerate() {
         if !names.contains(&station.eq.to_ascii_lowercase()) {
-            return Err(invalid("Station references an unknown EQ preset"));
+            return Err(value(P::Preset { index, field: "eq" }, "EQ reference has no matching built-in/custom definition. Restore that definition or explicitly choose a replacement; Off was not substituted."));
         }
-        for value in [&station.url, &station.metadata_url] {
-            if !value.is_empty() {
-                validate_stream_url(value)
-                    .map_err(|_| invalid("Invalid station or metadata URL"))?;
+        for (field, text) in [
+            ("url", &station.url),
+            ("metadataUrl", &station.metadata_url),
+        ] {
+            if !text.is_empty() {
+                stream_url_reason(text)
+                    .map_err(|reason| value(P::Preset { index, field }, reason))?;
             }
         }
         if !matches!(station.metadata_type.as_str(), "" | "ICY" | "JSON") {
-            return Err(invalid("Unknown metadata strategy"));
+            return Err(value(P::Preset { index, field: "metadataType" }, "Supported metadata strategies are empty, ICY or JSON (case-sensitive). The hint was not discarded."));
         }
     }
     Ok(())
+}
+
+fn remap_issue_to_document(mut error: ConfigError, document: &serde_json::Value) -> ConfigError {
+    use crate::config_issue::FieldPath;
+    if let ConfigError::Issue(issue) = &mut error {
+        if let FieldPath::Preset { index, field } = issue.path {
+            if let Some(banks) = document
+                .get("stationBanks")
+                .and_then(serde_json::Value::as_array)
+            {
+                for (bank, entry) in banks.iter().enumerate() {
+                    let Some(bank_index) = entry
+                        .get("bank")
+                        .and_then(serde_json::Value::as_str)
+                        .and_then(parse_bank_label)
+                    else {
+                        continue;
+                    };
+                    if let Some(slots) = entry.get("slots").and_then(serde_json::Value::as_array) {
+                        for (slot, item) in slots.iter().enumerate() {
+                            if item
+                                .get("key")
+                                .and_then(serde_json::Value::as_str)
+                                .and_then(parse_slot_key)
+                                .is_some_and(|s| bank_index * 10 + s == index)
+                            {
+                                issue.path = FieldPath::Slot { bank, slot, field };
+                                return error;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    error
 }
 
 pub fn validate_custom_eq_name(name: &str) -> Result<(), String> {
@@ -894,7 +998,8 @@ mod legacy_url_whitespace_test {
         assert_eq!(imported.presets.len(), 260);
         assert_eq!(changed_fields, 13);
         assert_eq!(imported.presets[0].url, cfg.presets[0].url);
-        assert!(validate_stream_url("https://example.invalid/internal space").is_err());
+        assert!(validate_stream_url("https://example.invalid/internal space").is_ok());
+        assert!(validate_stream_url("https://example.invalid/internal\nspace").is_err());
         fs::remove_dir_all(dir).unwrap();
     }
 }

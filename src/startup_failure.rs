@@ -13,6 +13,7 @@ pub enum Kind {
     ImportConflict,
     ConfigInvalid,
     ConfigValues,
+    ConfigField(crate::config_issue::ConfigIssue),
     Storage,
     ProfileBusy,
     Migration,
@@ -27,6 +28,7 @@ impl Failure {
     pub fn profile(error: ConfigError) -> Self {
         match error {
             ConfigError::Json(_) => Self(Kind::ConfigInvalid),
+            ConfigError::Issue(issue) => Self(Kind::ConfigField(issue)),
             ConfigError::Io(e) => {
                 let text = e.to_string();
                 let kind = if text
@@ -68,6 +70,13 @@ impl Failure {
             Kind::ImportConflict => "IMPORT-CONFLICT",
             Kind::ConfigInvalid => "CONFIG-STRUCTURE",
             Kind::ConfigValues => "CONFIG-VALUES",
+            Kind::ConfigField(issue) => {
+                if issue.structure {
+                    "CONFIG-STRUCTURE"
+                } else {
+                    "CONFIG-VALUES"
+                }
+            }
             Kind::Storage => "STORAGE",
             Kind::ProfileBusy => "PROFILE-IN-USE",
             Kind::Migration => "MIGRATION",
@@ -86,6 +95,7 @@ impl Failure {
   Kind::ConfigConflict=>"config.json beside the EXE and local-data/player/config.json contain different settings. Both files were preserved. Choose which profile to keep, or test a copy with --data-dir. No empty profile was substituted.",
   Kind::ImportConflict=>"The import would replace a different existing config.json. Both files were preserved. Import into a fresh --data-dir instead.",
   Kind::ConfigInvalid=>"A configuration or migration record is malformed, incomplete, or has unknown/duplicate fields. Check the JSON and use exactly one station-storage field: presets or stationBanks. No empty profile was substituted.",
+  Kind::ConfigField(_)=>"The selected configuration was not changed. Correct the identified field in a copy, or restore its original definition. Field indices are zero-based. No values, URLs or credentials are shown.",
   Kind::ConfigValues=>"The configuration contains invalid URLs, EQ references/values, metadata settings, or import parameters. Correct a copy or restore a verified backup. No empty profile was substituted.",
   Kind::Storage=>"The application cannot read or write its configuration or AppData storage. Check folder/file permissions, read-only attributes and free space. Keep existing configs and backups; no alternate profile was selected.",
   Kind::ProfileBusy=>"This profile is already open. Close its other player window before starting another copy. Existing settings were preserved.",
@@ -99,12 +109,11 @@ impl Failure {
 }
 impl fmt::Display for Failure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Unable to start Æ Strøm.\n\n{}\n\nError code: {}",
-            self.guidance(),
-            self.code()
-        )
+        write!(f, "Unable to start Æ Strøm.\n\n{}", self.guidance())?;
+        if let Kind::ConfigField(issue) = self.0 {
+            write!(f, "\n\n{issue}")?;
+        }
+        write!(f, "\n\nError code: {}", self.code())
     }
 }
 impl std::error::Error for Failure {}

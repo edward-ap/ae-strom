@@ -33,3 +33,5 @@ mod profile_tests;
 pub mod startup_failure;
 
 pub mod webview_prerequisite;
+
+pub mod config_issue;
