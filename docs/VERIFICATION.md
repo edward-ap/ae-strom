@@ -467,9 +467,9 @@ version resources. The GUI binary has zero matches for station URLs read from
 the local profiles; the inspector intentionally retains its public default URL.
 
 - ae-strom.exe: 18,953,728 bytes, SHA256
-  35051e3478125f798250d34290593fd0a541b4b1de881330df32cd9d06de47c9.
+  35cbf2f6309e09f98713a96e1268690c22ea36929a74bcbf73ecf15d907de755.
 - icy_peek.exe: 4,147,200 bytes, SHA256
-  4cad4e6d97f37db7d931bc0ccb34d04723367f9e3a98bcd6af8dfb07dd27b421.
+  1e3bb7e8ba3aef575fb2231deb5a435898a0c14770a2907317d5a2d8b572a7f8.
 
 The release assets also include icy_peek.cmd, BUILD_INFO.json, SHA256SUMS.txt and
 ae-strom-0.1.1-licenses.zip. The license archive is byte-identical to the previous
@@ -479,3 +479,7 @@ Ignored local-data/publication-0.1.1-*.log contains the build/test evidence;
 local-data/publication-release-v0.1.1 contains the staged upload assets. No new
 native GUI, physical input or live audio acceptance is claimed. The running
 player, local installation and station profiles were not replaced or saved.
+
+The all-target run relinked the publication executables after the initial build;
+the hashes above record the final staged upload bytes, which passed the static
+publication check again. PE timestamps/debug identifiers are not reproducible.
