@@ -14,7 +14,7 @@ export function createRadioUI(host, bridge) {
   let snapshot = null, browsedBank = 0, bankLoaded = -1, compact = false, panel = null, lastPanel = null, destroyed = false;
   let eqLoading = false, presetSignature = '', errorText = '', lastLayout = '';
   let layoutPromise = Promise.resolve();
-  const drafts = new Map(), cleanup = [], bankButtons = [], rows = [], bandControls = [];
+  const drafts = new Map(), pendingUrls = new Map(), cleanup = [], bankButtons = [], rows = [], bandControls = [];
   const owner = new Panel(host, { name: 'radioOwner', css: 'radio-owner', padding: 0 });
   const strip = new Panel({ name: 'strip', css: 'player-strip', padding: 0 }); owner.add(strip);
   const commands = new CommandRegistry();
@@ -27,7 +27,7 @@ export function createRadioUI(host, bridge) {
     strip.add(button); setLabel(button, label); button.element.dataset.control = name; return button;
   };
   const report = error => { if (!destroyed) { errorText = String(error?.message || error); renderStatus(); } };
-  const run = action => Promise.resolve(bridge.dispatch(action)).then(next => { errorText = ''; return applySnapshot(next); }).catch(error => { report(error); return null; });
+  const run = action => Promise.resolve(bridge.dispatch(action)).then(next => { errorText = ''; applySnapshot(next); return next; }).catch(error => { report(error); return null; });
   const command = (id, fn) => { commands.register(id, { run: fn }); return () => commands.execute(id); };
   const chevron = addIconButton('collapse', 'collapse', 'Collapse player', () => setCompact(!compact));
   const play = addIconButton('play', 'play', 'Play', command('play', () => snapshot && run({ type: 'setPlaying', playing: !snapshot.requestedPlaying })), false);
@@ -53,7 +53,7 @@ export function createRadioUI(host, bridge) {
     for (let row = 0; row < 5; row++) {
       const slot = col * 5 + row;
       const marker = new Button({ name: `stationMarker${slot}`, text: digit(slot), onClick: () => run({ type: 'selectStation', bank: browsedBank, slot }) });
-      const url = new TextInput({ name: `stationUrl${slot}`, label: '', value: '', inputType: 'text', spellcheck: false, autocomplete: 'off', onChange: e => drafts.set(`${browsedBank}:${slot}`, e.newValue), onBlur: () => commitUrl(slot), onKeyDown: e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) commitUrl(slot); } });
+      const url = new TextInput({ name: `stationUrl${slot}`, label: '', value: '', inputType: 'text', spellcheck: false, autocomplete: 'off', onChange: e => drafts.set(`${browsedBank}:${slot}`, e.newValue), onFocus: () => renderStationUrl(rows[slot], true), onBlur: () => { commitUrl(slot); renderStationUrl(rows[slot], false); }, onKeyDown: e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) commitUrl(slot); } });
       const eq = new SelectInput({ name: `stationEq${slot}`, valueField: 'name', textField: 'name', value: '', searchable: false, popupWidth: 180, onChange: e => run({ type: 'assignStationEq', bank: browsedBank, slot, name: String(e.newValue ?? '') }) });
       const form = new Form({ name: `stationRow${slot}`, css: 'station-row', labelWidth: 0 }).row(marker, url, eq); column.add(form);
       setLabel(marker, `Play station ${digit(slot)}`); marker.element.setAttribute('role', 'radio');
@@ -139,7 +139,9 @@ export function createRadioUI(host, bridge) {
     const key = `${compact}:${width}:${height}`;
     if (key === lastLayout) return layoutPromise;
     lastLayout = key;
-    layoutPromise = Promise.resolve(bridge.setWindowLayout({ compact, width, height })).catch(report);
+    layoutPromise = Promise.resolve().then(() => bridge.setWindowLayout({ compact, width, height }));
+    // Event handlers report failures; startup still awaits the rejecting promise.
+    layoutPromise.catch(report);
     return layoutPromise;
   }
   function renderLayout() {
@@ -165,17 +167,39 @@ export function createRadioUI(host, bridge) {
   function loadBank() {
     bankLoaded = browsedBank;
     bankButtons.forEach((button, bank) => button.element.setAttribute('aria-pressed', String(bank === browsedBank)));
-    for (const row of rows) { const entry = snapshot.stations[browsedBank * 10 + row.slot]; row.url.value.set(drafts.get(`${browsedBank}:${row.slot}`) ?? entry.url, silent); row.eq.value.set(entry.eq || '', silent); }
+    for (const row of rows) { const entry = snapshot.stations[browsedBank * 10 + row.slot]; renderStationUrl(row); row.eq.value.set(entry.eq || '', silent); }
     renderMarkers();
   }
   function renderMarkers() {
     for (const row of rows) row.marker.element.setAttribute('aria-checked', String(snapshot.activeBank === browsedBank && snapshot.activeSlot === row.slot));
   }
+  function renderStationUrl(row, editing = document.activeElement === row?.url.getFocusElement()) {
+    if (!snapshot || destroyed || !row) return;
+    const entry = snapshot.stations[browsedBank * 10 + row.slot], key = `${browsedBank}:${row.slot}`;
+    // Unsaved/rejected input stays visible. A station name describes only the
+    // saved URL; swapping presentation never creates an edit or a save.
+    const text = drafts.get(key) ?? (editing ? entry.url : entry.name.trim() || entry.url);
+    if (row.url.value.get() !== text) {
+      const input = row.url.getFocusElement();
+      row.url.value.set(text, silent);
+      // The newly revealed URL is ready for replacement; assigning value would
+      // otherwise leave a collapsed caret at the end of the old display text.
+      if (editing) input.select();
+    }
+  }
   function commitUrl(slot) {
     if (!snapshot || destroyed) return;
-    const bank = browsedBank, key = `${bank}:${slot}`, row = rows.find(r => r.slot === slot), url = row.url.value.get();
-    if (snapshot.stations[bank * 10 + slot].url === url) { drafts.delete(key); return; }
-    run({ type: 'setStationUrl', bank, slot, url }).then(saved => { if (saved && drafts.get(key) === url) drafts.delete(key); });
+    const bank = browsedBank, key = `${bank}:${slot}`, url = drafts.get(key), pending = pendingUrls.get(key);
+    if (url === undefined || pending?.url === url) return;
+    if (!pending && snapshot.stations[bank * 10 + slot].url === url) { drafts.delete(key); return; }
+    const saving = { url }; pendingUrls.set(key, saving);
+    run({ type: 'setStationUrl', bank, slot, url }).then(saved => {
+      if (pendingUrls.get(key) === saving) {
+        pendingUrls.delete(key);
+        if (saved && drafts.get(key) === url) drafts.delete(key);
+      }
+      if (!destroyed && bank === browsedBank && document.activeElement !== rows[slot].url.getFocusElement()) renderStationUrl(rows[slot], false);
+    });
   }
   function applySnapshot(next) {
     if (destroyed || !next || snapshot && next.revision < snapshot.revision) return;
@@ -193,8 +217,8 @@ export function createRadioUI(host, bridge) {
     next.eq.canDelete ? deletePreset.enable() : deletePreset.disable();
     if (bankLoaded < 0) { browsedBank = next.activeBank; loadBank(); } else renderMarkers();
     for (const row of rows) {
-      const entry = next.stations[browsedBank * 10 + row.slot], key = `${browsedBank}:${row.slot}`;
-      if (!drafts.has(key) && document.activeElement !== row.url.getFocusElement() && row.url.value.get() !== entry.url) row.url.value.set(entry.url, silent);
+      const entry = next.stations[browsedBank * 10 + row.slot];
+      if (document.activeElement !== row.url.getFocusElement()) renderStationUrl(row, false);
       if (document.activeElement !== row.eq.getFocusElement()) row.eq.value.set(entry.eq || '', silent);
     }
     renderStatus();
@@ -233,15 +257,23 @@ export function createRadioUI(host, bridge) {
   document.addEventListener('keydown', keyboard); strip.element.addEventListener('pointerdown', pointerDown); document.addEventListener('pointermove', pointerMove); document.addEventListener('pointerup', pointerUp); document.addEventListener('pointercancel', pointerUp); window.addEventListener('blur', pointerUp);
   cleanup.push(() => document.removeEventListener('keydown', keyboard), () => strip.element.removeEventListener('pointerdown', pointerDown), () => document.removeEventListener('pointermove', pointerMove), () => document.removeEventListener('pointerup', pointerUp), () => document.removeEventListener('pointercancel', pointerUp), () => window.removeEventListener('blur', pointerUp));
   // Subscribe before requesting the snapshot; revision/generation reject stale delivery.
-  const listen = (method, fn) => Promise.resolve(method.call(bridge, fn)).then(off => { if (destroyed) off?.(); else cleanup.push(off); }).catch(report);
+  const listen = (method, fn) => Promise.resolve().then(() => method.call(bridge, fn)).then(off => { if (destroyed) off?.(); else cleanup.push(off); });
   const stateSubscription = listen(bridge.subscribeState, applySnapshot);
   const spectrumSubscription = listen(bridge.subscribeSpectrum, event => { if (destroyed || !snapshot || event.generation !== snapshot.generation) return; if (!event.powered || !snapshot.requestedPlaying || snapshot.status !== 'playing') spectrum.clear(); else spectrum.setLevels(event.levels); });
-  const ready = Promise.all([stateSubscription, spectrumSubscription]).then(() => bridge.getSnapshot()).then(applySnapshot).then(async () => {
+  const assertAlive = () => { if (destroyed) throw new Error('Radio UI was destroyed during startup'); };
+  const ready = Promise.all([stateSubscription, spectrumSubscription]).then(() => { assertAlive(); return bridge.getSnapshot(); }).then(next => {
+    assertAlive();
+    if (!next) throw new Error('Initial radio snapshot is missing');
+    applySnapshot(next);
+  }).then(async () => {
     await document.fonts.load('12px "Noto Sans"', 'Æ Strøm Жж');
     await document.fonts.ready;
+    assertAlive();
     renderLayout();
     await requestWindowLayout();
-  }).catch(report);
-  return { ready, getState: () => ({ snapshot, compact, panel, lastPanel, browsedBank, drafts: Object.fromEntries(drafts) }), setCompact, showPanel, destroy() { if (destroyed) return; destroyed = true; cleanup.splice(0).forEach(fn => fn?.()); commands.destroy(); owner.destroy(); } };
+    assertAlive();
+  }).catch(error => { destroy(); throw error; });
+  function destroy() { if (destroyed) return; destroyed = true; cleanup.splice(0).forEach(fn => fn?.()); commands.destroy(); owner.destroy(); }
+  return { ready, getState: () => ({ snapshot, compact, panel, lastPanel, browsedBank, drafts: Object.fromEntries(drafts) }), setCompact, showPanel, destroy };
 }
 

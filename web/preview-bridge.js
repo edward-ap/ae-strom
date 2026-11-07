@@ -19,7 +19,7 @@ export function createPreviewBridge() {
        case 'setVolume':state.volume=Math.max(0,Math.min(100,action.volume));break;
        case 'setMuted':state.muted=action.muted;break;
        case 'selectStation':state.activeBank=action.bank;state.activeSlot=action.slot;state.generation++;break;
-       case 'setStationUrl':state.stations[action.bank*10+action.slot].url=action.url;break;
+       case 'setStationUrl':Object.assign(state.stations[action.bank*10+action.slot],{url:action.url.trim(),name:'',metadataType:'',metadataUrl:''});break;
        case 'assignStationEq':state.stations[action.bank*10+action.slot].eq=action.name;break;
        case 'selectEqPreset': {const selected=state.eqPresets.find(p=>p.name===action.name);if(selected) state.eq=eqState(selected);break;}
        case 'setEq':state.eq={...state.eq,preamp:action.preamp,bands:clone(action.bands),dirty:true,canSave:true};break;

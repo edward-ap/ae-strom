@@ -1,9 +1,10 @@
-import {BaseControl} from '../vendor/taet-ui.js';
+import {BaseControl,LifecycleError} from '../vendor/taet-ui.js';
 import {spectrumSegments,spectrumInteger,spectrumRowCounts} from './spectrumGeometry.js';
 
 const colorKeys={background:'background',idleColor:'idle',baselineColor:'baseline',peakColor:'peak',lineColor:'line'};
 /** Display only: host supplies ordered band amplitudes; no audio capture or FFT. */
 export class SpectrumAnalyzer extends BaseControl {
+  #disposing=false;
   constructor(containerOrOptions={},maybeOptions) {
     const mounted=typeof containerOrOptions==='string'||(typeof HTMLElement!=='undefined'&&containerOrOptions instanceof HTMLElement);
     const options=mounted?maybeOptions??{}:containerOrOptions;
@@ -55,7 +56,7 @@ export class SpectrumAnalyzer extends BaseControl {
     return this;
   }
   setLevels(values) {
-    this._assertMutable('setLevels');
+    this.#assertMutable('setLevels');
     if(!values||values.length!==this.bands)throw new RangeError(`Expected ${this.bands} spectrum levels.`);
     let changed=false;
     for(let i=0;i<this.bands;i++) {
@@ -65,22 +66,23 @@ export class SpectrumAnalyzer extends BaseControl {
     if(changed){this._dirty=true;this._schedule();}return this;
   }
   getLevels() {return Array.from(this._levels);}
-  clear() {this._assertMutable('clear');this._levels.fill(0);this._dirty=true;this._schedule();return this;}
+  clear() {this.#assertMutable('clear');this._levels.fill(0);this._dirty=true;this._schedule();return this;}
   setBandCount(bands) {
-    this._assertMutable('setBandCount');this.bands=spectrumInteger(bands,'bands',1,2048);
+    this.#assertMutable('setBandCount');this.bands=spectrumInteger(bands,'bands',1,2048);
     this._levels=new Float64Array(this.bands);this._invalidateCache();return this;
   }
-  setRowCount(rows) {this._assertMutable('setRowCount');this.rowCounts=Object.freeze(spectrumRowCounts(rows));this._invalidateCache();return this;}
-  setMode(value) {this._assertMutable('setMode');this.mode=mode(value);this._invalidateCache();return this;}
+  setRowCount(rows) {this.#assertMutable('setRowCount');this.rowCounts=Object.freeze(spectrumRowCounts(rows));this._invalidateCache();return this;}
+  setMode(value) {this.#assertMutable('setMode');this.mode=mode(value);this._invalidateCache();return this;}
   setPaused(value) {
-    this._assertMutable('setPaused');this.paused=value===true;
+    this.#assertMutable('setPaused');this.paused=value===true;
     if(this.paused)this._cancel();else this._schedule();return this;
   }
   setColors(value) {
-    this._assertMutable('setColors');this._colors={...this._colors,...colors(value)};
+    this.#assertMutable('setColors');this._colors={...this._colors,...colors(value)};
     if(this.element)this._applyColors(this.element);this._invalidateCache();return this;
   }
   refresh() {super.refresh();this._invalidateCache();return this;}
+  #assertMutable(operation) {if(this.destroyed||this.#disposing)throw new LifecycleError(`Cannot ${operation} destroyed control ${this.id}.`,this,operation);}
   _applyColors(root) {for(const [key,value] of Object.entries(this._colors))root.style.setProperty(`--dui-spectrum-${key}`,value);}
   _invalidateCache() {this._cacheDirty=true;this._dirty=true;this._schedule();}
   _canDraw() {return this.mounted&&!this.destroyed&&!this.paused&&!this.disabled&&this.visible&&!document.hidden&&this._intersecting;}
@@ -100,8 +102,10 @@ export class SpectrumAnalyzer extends BaseControl {
     });
   }
   _cancel() {if(this._frame!==null)cancelAnimationFrame(this._frame);if(this._timer!==null)clearTimeout(this._timer);this._frame=this._timer=null;}
-  _applyVisibilityState() {super._applyVisibilityState();if(!this.visible)this._cancel();else this._schedule();}
-  _applyDisabledState() {super._applyDisabledState();if(this.disabled)this._cancel();else this._schedule();}
+  show(options) {super.show(options);if(!this.destroyed&&this.visible)this._schedule();return this;}
+  hide(options) {super.hide(options);if(!this.visible)this._cancel();return this;}
+  enable() {super.enable();this._schedule();}
+  disable() {super.disable();this._cancel();}
   _prepare() {
     const width=this.element.clientWidth,height=this.element.clientHeight;
     if(!width||!height)return false;
@@ -169,7 +173,7 @@ export class SpectrumAnalyzer extends BaseControl {
     ctx.restore();
   }
   destroy() {
-    if(this.destroyed||this._destroying)return;this._cancel();super.destroy();
+    if(this.destroyed||this.#disposing)return;this.#disposing=true;this._cancel();super.destroy();
     if(this._canvas){this._canvas.width=this._canvas.height=1;this._backdrop.width=this._backdrop.height=1;}
     this._canvas=this._context=this._backdrop=this._backContext=null;this._levels=new Float64Array(0);this._segmentPaths=null;
   }
