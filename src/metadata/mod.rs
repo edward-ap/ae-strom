@@ -20,6 +20,7 @@
 //! providing a unified interface at the top level.
 pub mod direct;
 pub mod helpers;
+pub(crate) mod icy;
 pub mod model;
 pub mod provider;
 pub mod sibling;

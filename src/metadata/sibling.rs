@@ -22,7 +22,7 @@ impl std::fmt::Display for SiblingError {
 
 /// Attempt to find ICY metadata by probing sibling streams.
 ///
-/// When the main stream is FLAC (which doesn't support ICY metadata),
+/// When the main FLAC stream provides neither ICY nor usable container titles,
 /// this function tries common alternative URLs (e.g., replacing "flac"
 /// with "320", "128", "mp3", etc.) to find a stream that provides ICY metadata.
 ///

@@ -8,12 +8,44 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 use symphonia::core::codecs::{Decoder, DecoderOptions};
 use symphonia::core::formats::{FormatOptions, FormatReader};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
+use symphonia::core::units::TimeBase;
 use thiserror::Error;
+
+mod adts_clock;
+mod container_metadata;
+use container_metadata::ContainerMetadata;
+mod timing;
+pub use crate::net::HttpBufferStats;
+pub(crate) use adts_clock::AdtsClock;
+pub use adts_clock::AdtsStats;
+pub use timing::PlaybackTiming;
+
+/// Header capability and metadata events from the actual audio HTTP connection.
+#[derive(Clone, Debug)]
+pub enum StreamMetadataEvent {
+    Connected {
+        request_id: u64,
+        icy: bool,
+    },
+    Info {
+        request_id: u64,
+        info: crate::metadata::Info,
+    },
+    /// Initial result after probing (including no title), or a later revision.
+    /// has_title describes availability, not whether this revision changes it.
+    Container {
+        request_id: u64,
+        info: crate::metadata::Info,
+        has_title: bool,
+    },
+}
+pub type StreamMetadataSink = Arc<dyn Fn(StreamMetadataEvent) + Send + Sync>;
 
 // Global master attenuation to reduce overall loudness independently of UI slider.
 // 0.7 means ~30% quieter output compared to previous builds.
@@ -26,11 +58,28 @@ const RECONNECT_DELAY: Duration = Duration::from_secs(1);
 /// Thin wrapper to adapt a streaming reader into Symphonia's MediaSource.
 struct HttpSource<R: Read + Send> {
     reader: R,
+    adts: Option<AdtsClock>,
+    inner: Arc<Mutex<InnerState>>,
+    request_id: u64,
 }
 
 impl<R: Read + Send> Read for HttpSource<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.reader.read(buf)
+        let read = self.reader.read(buf)?;
+        if let Some(clock) = &mut self.adts {
+            let before = (clock.stats.sample_rate, clock.stats.format_changes);
+            clock.feed(&buf[..read]);
+            {
+                let mut state = self.inner.lock().unwrap();
+                if state.diagnostics.timing.request_id == self.request_id {
+                    state.diagnostics.timing.adts = clock.stats.clone();
+                }
+            }
+            if before != (clock.stats.sample_rate, clock.stats.format_changes) {
+                log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"adts_format","requestId":self.request_id,"adts":clock.stats}));
+            }
+        }
+        Ok(read)
     }
 }
 
@@ -93,6 +142,27 @@ struct InnerState {
     cancel: Arc<AtomicBool>,
     headless: bool,
     diagnostics: Diagnostics,
+    timing_started: Option<Instant>,
+    timing_enabled: bool,
+    http_timing: Option<crate::net::HttpBufferTiming>,
+}
+
+struct TimingClock(Arc<Mutex<InnerState>>);
+impl Drop for TimingClock {
+    fn drop(&mut self) {
+        let (mut timing, http) = {
+            let mut state = self.0.lock().unwrap();
+            if let Some(started) = state.timing_started.take() {
+                state.diagnostics.timing.wall_seconds = started.elapsed().as_secs_f64();
+            }
+            state.diagnostics.timing.active = false;
+            (state.diagnostics.timing.clone(), state.http_timing.clone())
+        };
+        if let Some(http) = http {
+            timing.http = http.snapshot();
+        }
+        log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"audio_timing_end","timing":timing}));
+    }
 }
 
 #[derive(Clone, Default, Debug, Serialize)]
@@ -105,6 +175,7 @@ pub struct Diagnostics {
     pub non_silent_samples: u64,
     pub peak: f32,
     pub headless: bool,
+    pub timing: PlaybackTiming,
 }
 
 /// High-level audio controller that manages playback and shared state.
@@ -116,6 +187,7 @@ pub struct AudioEngine {
 /// Per-playback resources created when starting a stream.
 struct PlaybackContext {
     format: Box<dyn FormatReader>,
+    container_metadata: ContainerMetadata,
     decoder: Option<Box<dyn Decoder>>,
     track_id: u32,
     in_channels: usize,
@@ -133,6 +205,8 @@ struct PlaybackContext {
     in_channel_buffers: Vec<Vec<f32>>,
     output_device: Option<cpal::Device>,
     headless: bool,
+    packet_time_base: Option<TimeBase>,
+    collect_timing: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -159,6 +233,9 @@ impl Default for AudioEngine {
                 cancel: Arc::new(AtomicBool::new(false)),
                 headless: false,
                 diagnostics: Diagnostics::default(),
+                timing_started: None,
+                timing_enabled: false,
+                http_timing: None,
             })),
         }
     }
@@ -195,6 +272,19 @@ impl AudioEngine {
 
         let in_sample_rate = track.codec_params.sample_rate.unwrap_or(48_000) as usize;
         let in_channels = track.codec_params.channels.map(|c| c.count()).unwrap_or(2) as usize;
+        ctx.packet_time_base = track.codec_params.time_base;
+        {
+            let mut state = inner.lock().unwrap();
+            let timing = &mut state.diagnostics.timing;
+            timing.codec = codecs
+                .get_codec(track.codec_params.codec)
+                .map_or("unknown", |c| c.short_name)
+                .into();
+            timing.declared_sample_rate = in_sample_rate as u32;
+            timing.time_base_numer = ctx.packet_time_base.map(|tb| tb.numer);
+            timing.time_base_denom = ctx.packet_time_base.map(|tb| tb.denom);
+            timing.expected_ts = None;
+        }
 
         ctx.decoder = Some(decoder);
         ctx.track_id = track.id;
@@ -230,10 +320,17 @@ impl AudioEngine {
         Self::default()
     }
 
+    /// Opt-in passive clock diagnostics for the console capture client.
+    pub fn new_with_timing() -> Self {
+        let engine = Self::new();
+        engine.inner.lock().unwrap().timing_enabled = true;
+        engine
+    }
+
     /// Test-only PCM sink: never enumerates or opens an output device.
     #[cfg(test)]
     pub fn new_sink() -> Self {
-        let engine = Self::new();
+        let engine = Self::new_with_timing();
         {
             let mut state = engine.inner.lock().unwrap();
             state.headless = true;
@@ -242,7 +339,19 @@ impl AudioEngine {
         engine
     }
     pub fn diagnostics(&self) -> Diagnostics {
-        self.inner.lock().unwrap().diagnostics.clone()
+        let state = self.inner.lock().unwrap();
+        let mut diagnostics = state.diagnostics.clone();
+        if let Some(started) = state.timing_started {
+            diagnostics.timing.wall_seconds = started.elapsed().as_secs_f64();
+        }
+        let http = state.http_timing.clone();
+        drop(state);
+        // Capture ingress after downstream counters: received prefixes cannot
+        // precede data already handed to the decoder. No nested engine/HTTP lock.
+        if let Some(http) = http {
+            diagnostics.timing.http = http.snapshot();
+        }
+        diagnostics
     }
     pub fn request_stop(&self) {
         let mut state = self.inner.lock().unwrap();
@@ -296,7 +405,11 @@ impl AudioEngine {
 
     /// Start playback for a given URL (spawns worker thread).
     pub fn play_url(&self, url: String) {
-        self.start_playback_thread(url);
+        self.start_playback_thread(url, None);
+    }
+
+    pub fn play_url_with_metadata(&self, url: String, on_metadata: StreamMetadataSink) {
+        self.start_playback_thread(url, Some(on_metadata));
     }
 
     /// Stop playback and join worker thread.
@@ -327,7 +440,7 @@ impl AudioEngine {
         }
     }
 
-    fn start_playback_thread(&self, url: String) {
+    fn start_playback_thread(&self, url: String, on_metadata: Option<StreamMetadataSink>) {
         self.stop_playback();
         {
             let mut state = self.inner.lock().unwrap();
@@ -357,28 +470,29 @@ impl AudioEngine {
                     }
                 }
 
-                let mut ctx = match Self::build_playback_context(&inner_arc, &url) {
-                    Ok(c) => c,
-                    Err(e) => {
-                        log::warn!("{e}");
-                        if matches!(
-                            e,
-                            EngineError::PermanentHttp(_)
-                                | EngineError::NoTrack
-                                | EngineError::Decoder(_)
-                        ) {
-                            let mut state = inner_arc.lock().unwrap();
-                            state.status = "error".into();
-                            state.last_error =
-                                Some("Cannot open the stream (HTTP or codec error)".into());
-                            break;
+                let mut ctx =
+                    match Self::build_playback_context(&inner_arc, &url, on_metadata.clone()) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            log::warn!("{e}");
+                            if matches!(
+                                e,
+                                EngineError::PermanentHttp(_)
+                                    | EngineError::NoTrack
+                                    | EngineError::Decoder(_)
+                            ) {
+                                let mut state = inner_arc.lock().unwrap();
+                                state.status = "error".into();
+                                state.last_error =
+                                    Some("Cannot open the stream (HTTP or codec error)".into());
+                                break;
+                            }
+                            if !Self::wait_for_reconnect_or_stop(&inner_arc) {
+                                break;
+                            }
+                            continue;
                         }
-                        if !Self::wait_for_reconnect_or_stop(&inner_arc) {
-                            break;
-                        }
-                        continue;
-                    }
-                };
+                    };
 
                 if inner_arc.lock().unwrap().stop_flag {
                     break;
@@ -448,6 +562,10 @@ impl AudioEngine {
         state.last_error = None;
         state.spectrum_levels = [0.; 5];
         state.spectrum_analyzer = spectrum;
+        if state.timing_enabled {
+            state.timing_started = Some(Instant::now());
+            state.diagnostics.timing.active = true;
+        }
         None
     }
     fn interruption(inner: &Arc<Mutex<InnerState>>) -> Option<PlaybackLoopExit> {
@@ -497,11 +615,13 @@ fn fill_output_from_ring_buffer(
         }
     };
 
+    let mut missing = 0;
     for sample in output.iter_mut() {
         if let Some(s) = consumer.pop() {
             *sample = s;
         } else {
             *sample = 0.0;
+            missing += 1;
         }
     }
 
@@ -509,6 +629,12 @@ fn fill_output_from_ring_buffer(
     let mut state = inner.lock().unwrap();
     state.diagnostics.output_callbacks += 1;
     state.diagnostics.output_samples += output.len() as u64;
+    if state.timing_enabled {
+        state
+            .diagnostics
+            .timing
+            .output(output.len(), missing, consumer.len());
+    }
     state.diagnostics.non_silent_samples += output.iter().filter(|s| s.abs() > 1e-7).count() as u64;
     state.diagnostics.peak = output
         .iter()
@@ -527,6 +653,7 @@ impl AudioEngine {
     fn build_playback_context(
         inner: &Arc<Mutex<InnerState>>,
         url: &str,
+        on_metadata: Option<StreamMetadataSink>,
     ) -> Result<PlaybackContext, EngineError> {
         use cpal::traits::{DeviceTrait, HostTrait};
 
@@ -535,22 +662,86 @@ impl AudioEngine {
             state.diagnostics.connections += 1;
             state.cancel.clone()
         };
-        let response = crate::net::get(url, cancel).call().map_err(|e| {
+        let collect_timing = inner.lock().unwrap().timing_enabled;
+        let request = crate::net::get(url, cancel.clone()).set("Icy-MetaData", "1");
+        let request = if collect_timing {
+            request.with_buffer_timing()
+        } else {
+            request
+        };
+        let response = request.call().map_err(|e| {
             if e.kind() == std::io::ErrorKind::InvalidInput {
                 EngineError::PermanentHttp(e.to_string())
             } else {
                 EngineError::Http(e.to_string())
             }
         })?;
-        let reader = response.into_reader();
-        let source = HttpSource { reader };
+        log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"audio_connection","requestId":response.request_id()}));
+        let request_id = response.request_id();
+        let metaint = crate::metadata::icy::interval(response.header("icy-metaint"))
+            .map_err(|e| EngineError::Http(e.to_string()))?;
+        let station_name = response
+            .header("icy-name")
+            .and_then(crate::metadata::direct::normalize_station_name);
+        log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"audio_metadata_source","requestId":request_id,"source":if metaint.is_some(){"in_band"}else{"container_probe"},"metaint":metaint}));
+        if let Some(callback) = &on_metadata {
+            if !cancel.load(Ordering::Acquire) {
+                callback(StreamMetadataEvent::Connected {
+                    request_id,
+                    icy: metaint.is_some(),
+                });
+                if let Some(station_name) = station_name {
+                    callback(StreamMetadataEvent::Info {
+                        request_id,
+                        info: crate::metadata::Info {
+                            title: String::new(),
+                            station_name: Some(station_name),
+                        },
+                    });
+                }
+            }
+        }
+        let observe_adts = collect_timing
+            && response
+                .header("content-type")
+                .is_some_and(|ct| ct.to_ascii_lowercase().contains("aac"));
+        {
+            let mut state = inner.lock().unwrap();
+            state.diagnostics.timing = PlaybackTiming {
+                connection: state.diagnostics.connections,
+                request_id,
+                ..PlaybackTiming::default()
+            };
+            state.timing_started = None;
+            state.http_timing = response.buffer_timing();
+        }
+        let icy_cancel = cancel.clone();
+        let icy_callback = on_metadata.clone();
+        let reader = crate::metadata::icy::IcyReader::new(
+            response.into_reader(),
+            metaint,
+            request_id,
+            Arc::new(move |info| {
+                if !icy_cancel.load(Ordering::Acquire) {
+                    if let Some(callback) = &icy_callback {
+                        callback(StreamMetadataEvent::Info { request_id, info });
+                    }
+                }
+            }),
+        );
+        let source = HttpSource {
+            reader,
+            adts: observe_adts.then(AdtsClock::default),
+            inner: inner.clone(),
+            request_id,
+        };
         let mss = MediaSourceStream::new(Box::new(source), Default::default());
 
         let mut hint = Hint::new();
         hint.with_extension("aac");
         hint.with_extension("adts");
 
-        let probed = symphonia::default::get_probe()
+        let mut probed = symphonia::default::get_probe()
             .format(
                 &hint,
                 mss,
@@ -559,7 +750,15 @@ impl AudioEngine {
             )
             .map_err(|e| EngineError::Probe(e.to_string()))?;
 
-        let format = probed.format;
+        let mut format = probed.format;
+        let container_metadata = ContainerMetadata::new(
+            request_id,
+            metaint.is_none(),
+            on_metadata,
+            cancel,
+            probed.metadata.get(),
+            format.metadata(),
+        );
 
         let headless = inner.lock().unwrap().headless;
         let (output_device, stream_config, sample_format) = if headless {
@@ -585,6 +784,11 @@ impl AudioEngine {
         };
         let out_sample_rate = stream_config.sample_rate.0 as usize;
         let out_channels = stream_config.channels as usize;
+        {
+            let mut state = inner.lock().unwrap();
+            state.diagnostics.timing.output_sample_rate = out_sample_rate as u32;
+            state.diagnostics.timing.output_channels = out_channels;
+        }
 
         let rb = HeapRb::<f32>::new(out_sample_rate * out_channels as usize / 2);
         let (ring_producer, ring_consumer) = rb.split();
@@ -596,6 +800,7 @@ impl AudioEngine {
 
         let mut ctx = PlaybackContext {
             format,
+            container_metadata,
             decoder: None,
             track_id: 0,
             in_channels: 0,
@@ -613,9 +818,13 @@ impl AudioEngine {
             in_channel_buffers: Vec::new(),
             output_device,
             headless,
+            packet_time_base: None,
+            collect_timing,
         };
 
         Self::rebuild_decoder_for_current_stream(inner, &mut ctx)?;
+        let timing = inner.lock().unwrap().diagnostics.timing.clone();
+        log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"audio_format","timing":timing}));
 
         Ok(ctx)
     }
@@ -688,6 +897,7 @@ impl AudioEngine {
         if let Some(exit) = Self::begin_loop(&inner, ctx.spectrum.take()) {
             return exit;
         }
+        let _timing_clock = ctx.collect_timing.then(|| TimingClock(inner.clone()));
 
         loop {
             {
@@ -700,7 +910,10 @@ impl AudioEngine {
                 }
             }
 
-            let packet = match ctx.format.next_packet() {
+            let next = ctx.format.next_packet();
+            let reset = matches!(&next, Err(SymphError::ResetRequired));
+            ctx.container_metadata.update(ctx.format.metadata(), reset);
+            let packet = match next {
                 Ok(p) => p,
                 Err(SymphError::IoError(err)) => {
                     log::warn!("[audio] packet read failed: {err}");
@@ -724,10 +937,27 @@ impl AudioEngine {
             if packet.track_id() != ctx.track_id {
                 continue;
             }
+            if ctx.collect_timing {
+                inner.lock().unwrap().diagnostics.timing.packet(
+                    packet.ts(),
+                    packet.dur(),
+                    ctx.packet_time_base,
+                );
+            }
 
             let decoded = match ctx.decoder.as_mut().unwrap().decode(&packet) {
                 Ok(a) => a,
-                Err(SymphError::DecodeError(_)) => continue,
+                Err(SymphError::DecodeError(_)) => {
+                    if ctx.collect_timing {
+                        inner
+                            .lock()
+                            .unwrap()
+                            .diagnostics
+                            .timing
+                            .decode_error_packets += 1;
+                    }
+                    continue;
+                }
                 Err(SymphError::IoError(err)) => {
                     log::warn!("[audio] decoder I/O failed: {err}");
                     return PlaybackLoopExit::Reconnect;
@@ -746,6 +976,22 @@ impl AudioEngine {
                     return PlaybackLoopExit::Reconnect;
                 }
             };
+            let decoded_format_changed = if ctx.collect_timing {
+                let mut state = inner.lock().unwrap();
+                let changed = state.diagnostics.timing.decoded_sample_rate != decoded.spec().rate
+                    || state.diagnostics.timing.decoded_channels != decoded.spec().channels.count();
+                state.diagnostics.timing.decoded(
+                    decoded.frames(),
+                    decoded.spec().rate,
+                    decoded.spec().channels.count(),
+                );
+                changed
+            } else {
+                false
+            };
+            if decoded_format_changed {
+                log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"decoded_format","sampleRate":decoded.spec().rate,"channels":decoded.spec().channels.count(),"packetTimeBaseNumer":ctx.packet_time_base.map(|tb| tb.numer),"packetTimeBaseDenom":ctx.packet_time_base.map(|tb| tb.denom)}));
+            }
 
             if sample_buf
                 .as_ref()
@@ -827,6 +1073,15 @@ impl AudioEngine {
                     let buf = &mut ctx.in_channel_buffers[ch];
                     buf.drain(..needed_in);
                 }
+                if ctx.collect_timing {
+                    let mut state = inner.lock().unwrap();
+                    state.diagnostics.timing.resampler_input_seconds +=
+                        needed_in as f64 / ctx.current_in_rate as f64;
+                    state.diagnostics.timing.generated_output_seconds +=
+                        out_slices[0].len() as f64 / ctx.out_sample_rate as f64;
+                    state.diagnostics.timing.input_buffer_seconds =
+                        ctx.in_channel_buffers[0].len() as f64 / ctx.current_in_rate as f64;
+                }
 
                 let mut mapped: Vec<&[f32]> = Vec::with_capacity(ctx.out_channels);
                 if !ctx.needs_channel_map {
@@ -907,6 +1162,29 @@ impl AudioEngine {
 mod backpressure_regression {
     use super::*;
     use ringbuf::Rb;
+    #[test]
+    fn output_clock_distinguishes_real_silence_mute_and_empty_buffer() {
+        let engine = AudioEngine::new_sink();
+        {
+            let mut state = engine.inner.lock().unwrap();
+            state.diagnostics.timing.output_sample_rate = 48000;
+            state.diagnostics.timing.output_channels = 2;
+            state.muted = true;
+        }
+        let (mut producer, mut consumer) = HeapRb::<f32>::new(8).split();
+        for sample in [0.0, 0.0, 1.0, 1.0] {
+            producer.push(sample).unwrap();
+        }
+        let mut output = [42.0; 8];
+        fill_output_from_ring_buffer(&mut output, &engine.inner, &mut consumer);
+        assert_eq!(output, [0.0; 8]);
+        let t = engine.diagnostics().timing;
+        assert_eq!(t.underrun_samples, 4);
+        assert_eq!(t.underrun_callbacks, 1);
+        assert!((t.device_seconds - 8.0 / 96000.0).abs() < 1e-12);
+        assert!((t.played_audio_seconds - 4.0 / 96000.0).abs() < 1e-12);
+        assert!((t.underrun_seconds - 4.0 / 96000.0).abs() < 1e-12);
+    }
     #[test]
     fn output_failure_interrupts_a_full_ring_and_stop_wins() {
         let engine = AudioEngine::new_sink();

@@ -60,13 +60,14 @@ pub fn watch_direct_icy(
         });
     }
 
-    let mut first = Some((resp.into_reader(), metaint));
+    let request_id = resp.request_id();
+    let mut first = Some((resp.into_reader(), metaint, request_id));
     let url = url.to_owned();
     Ok(spawn_metadata_worker(
         "direct",
         stop_flag.clone(),
         move || {
-            let (mut reader, metaint) = if let Some(first) = first.take() {
+            let (mut reader, metaint, request_id) = if let Some(first) = first.take() {
                 first
             } else {
                 let response = crate::net::get(&url, stop_flag.clone())
@@ -84,9 +85,17 @@ pub fn watch_direct_icy(
                         station_name: Some(name),
                     });
                 }
-                (response.into_reader(), metaint)
+                let request_id = response.request_id();
+                (response.into_reader(), metaint, request_id)
             };
-            direct_worker(&mut reader, metaint, on_info.clone(), stop_flag.clone())
+            log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"icy_connection","requestId":request_id,"metaint":metaint}));
+            direct_worker(
+                &mut reader,
+                metaint,
+                request_id,
+                on_info.clone(),
+                stop_flag.clone(),
+            )
         },
     ))
 }
@@ -98,15 +107,17 @@ pub fn watch_direct_icy(
 fn direct_worker(
     reader: &mut impl Read,
     metaint: usize,
+    request_id: u64,
     on_info: Arc<dyn Fn(Info) + Send + Sync>,
     stop_flag: Arc<AtomicBool>,
 ) -> Result<(), DirectError> {
     let mut audio_buf = vec![0u8; metaint];
     let mut meta_len_buf = [0u8; 1];
     let mut last_title = String::new();
-    let mut _block_idx: u64 = 0;
+    let mut block_idx: u64 = 0;
 
     loop {
+        block_idx += 1;
         if stop_flag.load(Ordering::SeqCst) {
             return Ok(());
         }
@@ -127,7 +138,7 @@ fn direct_worker(
         if let Err(_e) = reader.read_exact(&mut meta_buf) {
             return Err(DirectError::Io);
         }
-        _block_idx += 1;
+        log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"icy_block","requestId":request_id,"block":block_idx,"audioBytes":block_idx.saturating_mul(metaint as u64),"raw":String::from_utf8_lossy(&meta_buf).trim_end_matches('\0')}));
 
         if let Some(title) = parse_stream_title(&meta_buf) {
             if !title.is_empty() && title != last_title {
@@ -142,7 +153,7 @@ fn direct_worker(
 }
 
 /// Parse stream title from raw metadata bytes.
-fn parse_stream_title(buf: &[u8]) -> Option<String> {
+pub(crate) fn parse_stream_title(buf: &[u8]) -> Option<String> {
     let s = String::from_utf8_lossy(buf);
     extract_stream_title(&s)
 }
@@ -221,7 +232,7 @@ fn normalize_title(raw: &str) -> Option<String> {
     }
 }
 
-fn normalize_station_name(raw: &str) -> Option<String> {
+pub(crate) fn normalize_station_name(raw: &str) -> Option<String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         None

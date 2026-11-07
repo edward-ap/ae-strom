@@ -4,6 +4,8 @@ use crate::{
     presets,
 };
 use serde::{Deserialize, Serialize};
+mod config_writer;
+use config_writer::ConfigWriter;
 use std::{
     path::PathBuf,
     sync::{
@@ -126,6 +128,7 @@ enum Message {
         station: usize,
         title: String,
         name: Option<String>,
+        name_if_empty: bool,
     },
     Strategy {
         generation: u64,
@@ -161,7 +164,7 @@ impl Controller {
         let eq = eq_view(&cfg, &selected);
         let mut core = Core {
             cfg,
-            path,
+            storage: ConfigWriter::start(path)?,
             backend,
             mode,
             generation: 0,
@@ -210,11 +213,23 @@ impl Controller {
                             station,
                             title,
                             name,
+                            name_if_empty,
                         }) => {
                             if core.accepts(generation, station) {
-                                if let Some(name) = name.filter(|n| !n.trim().is_empty()) {
-                                    core.cfg.presets[station].name = name.trim().to_owned();
-                                    if title.trim().is_empty() {
+                                if let Some(name) = name.filter(|n| {
+                                    !n.trim().is_empty()
+                                        && (!name_if_empty
+                                            || core.cfg.presets[station].name.trim().is_empty())
+                                }) {
+                                    if core.cfg.presets[station].name != name.trim() {
+                                        core.cfg.presets[station].name = name.trim().to_owned();
+                                        core.persist();
+                                    }
+                                    if title.trim().is_empty()
+                                        && (!name_if_empty
+                                            || core.title.is_empty()
+                                            || core.title == "Connecting...")
+                                    {
                                         core.title = name.trim().to_owned();
                                     }
                                 }
@@ -222,7 +237,6 @@ impl Controller {
                                 if !clean.is_empty() {
                                     core.title = clean;
                                 }
-                                core.persist();
                                 core.revision += 1;
                                 publish(&core);
                             }
@@ -234,9 +248,13 @@ impl Controller {
                             url,
                         }) => {
                             if core.accepts(generation, station) {
-                                core.cfg.presets[station].metadata_type = kind;
-                                core.cfg.presets[station].metadata_url = url;
-                                core.persist();
+                                if core.cfg.presets[station].metadata_type != kind
+                                    || core.cfg.presets[station].metadata_url != url
+                                {
+                                    core.cfg.presets[station].metadata_type = kind;
+                                    core.cfg.presets[station].metadata_url = url;
+                                    core.persist();
+                                }
                                 core.revision += 1;
                                 publish(&core);
                             }
@@ -255,8 +273,7 @@ impl Controller {
                             core.requested = false;
                             core.status = "stopped".into();
                             core.title = "Stopped".into();
-                            let result =
-                                config::save(&core.path, &core.cfg).map_err(|e| e.to_string());
+                            let result = core.storage.flush(&core.cfg);
                             core.storage_error = result.as_ref().err().cloned();
                             core.revision += 1;
                             publish(&core);
@@ -275,6 +292,14 @@ impl Controller {
                             break;
                         }
                         Err(mpsc::RecvTimeoutError::Timeout) => {}
+                    }
+                    if let Some(result) = core.storage.poll() {
+                        let error = result.err();
+                        if core.storage_error != error {
+                            core.storage_error = error;
+                            core.revision += 1;
+                            publish(&core);
+                        }
                     }
                     if tick.elapsed() >= Duration::from_millis(50) {
                         if core.tick() {
@@ -343,7 +368,7 @@ impl Controller {
 
 struct Core {
     cfg: Config,
-    path: PathBuf,
+    storage: ConfigWriter,
     backend: Backend,
     mode: PlaybackMode,
     generation: u64,
@@ -398,9 +423,7 @@ impl Core {
         }
     }
     fn persist(&mut self) {
-        self.storage_error = config::save(&self.path, &self.cfg)
-            .err()
-            .map(|e| format!("Settings were not saved: {e}"));
+        self.storage.schedule(&self.cfg);
     }
     fn cancel(&mut self) {
         self.cancellation.store(true, Ordering::Release);
@@ -452,12 +475,16 @@ impl Core {
                 },
                 poll: Duration::from_secs(self.cfg.json_poll_interval_sec.unwrap_or(5).max(5)),
                 cancel: self.cancellation.clone(),
-                on_info: Arc::new(move |info| {
+                on_info: Arc::new(move |info, policy| {
                     let _ = tx.try_send(Message::Metadata {
                         generation,
                         station: idx,
                         title: info.title,
                         name: info.station_name,
+                        name_if_empty: matches!(
+                            policy,
+                            crate::session::StationNamePolicy::FillEmpty
+                        ),
                     });
                 }),
                 on_strategy: Arc::new(move |hint| {
@@ -485,6 +512,8 @@ impl Core {
                     self.status = "stopped".into();
                     self.title = "Stopped".into();
                 }
+                // Playback intent is not a persisted setting.
+                return Ok(());
             }
             Action::SetVolume { volume } => {
                 self.cfg.volume = volume.clamp(0, 100) as u8;
@@ -829,6 +858,51 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
+    fn container_station_names_fill_once_but_titles_continue_to_update() {
+        let (c, dir) = fixture();
+        let playing = act(&c, Action::SetPlaying { playing: true });
+        c.tx.send(Message::Metadata {
+            generation: playing.generation,
+            station: 0,
+            title: "First Song".into(),
+            name: None,
+            name_if_empty: true,
+        })
+        .unwrap();
+        for (name, title) in [
+            ("Container Radio", ""),
+            ("Other Container Name", "Second Song"),
+        ] {
+            c.tx.send(Message::Metadata {
+                generation: playing.generation,
+                station: 0,
+                title: title.into(),
+                name: Some(name.into()),
+                name_if_empty: true,
+            })
+            .unwrap();
+            let snapshot = act(&c, Action::SetVolume { volume: 50 });
+            assert_eq!(snapshot.stations[0].name, "Container Radio");
+            assert_eq!(
+                snapshot.full_title,
+                if title.is_empty() {
+                    "First Song"
+                } else {
+                    title
+                }
+            );
+        }
+        c.shutdown().unwrap();
+        assert_eq!(
+            config::load_or_default(&dir.join("config.json"))
+                .unwrap()
+                .presets[0]
+                .name,
+            "Container Radio"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
     fn stale_metadata_cannot_change_new_generation_or_stopped_state() {
         let (c, dir) = fixture();
         let first = act(&c, Action::SetPlaying { playing: true });
@@ -840,6 +914,7 @@ mod tests {
             station: 0,
             title: "stale".into(),
             name: Some("wrong".into()),
+            name_if_empty: false,
         })
         .unwrap();
         let s = act(&c, Action::SetVolume { volume: 45 });
@@ -956,6 +1031,7 @@ mod continuity_tests {
                 station: 0,
                 title: "old session".into(),
                 name: None,
+                name_if_empty: false,
             })
             .unwrap();
         let title = "long title ".repeat(40);
@@ -966,6 +1042,7 @@ mod continuity_tests {
                 station: 0,
                 title: title.clone(),
                 name: None,
+                name_if_empty: false,
             })
             .unwrap();
         let current = act(&controller, Action::SetVolume { volume: 50 });
@@ -1041,6 +1118,49 @@ fn is_builtin(name: &str) -> bool {
 mod shutdown_failure_test {
     use super::*;
     #[test]
+    fn background_save_failure_and_recovery_publish_while_stopped() {
+        let id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("radio-background-save-{}-{id}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.json");
+        let c = Controller::start(path.clone(), PlaybackMode::Fake, Arc::new(|_| {})).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        let act = |volume| {
+            c.submit(Action::SetVolume { volume })
+                .unwrap()
+                .recv_timeout(Duration::from_secs(2))
+                .unwrap()
+                .unwrap()
+        };
+        let wait = |failed| {
+            let deadline = Instant::now() + Duration::from_secs(3);
+            loop {
+                let snapshot = c.snapshot();
+                if snapshot.error.is_some() == failed {
+                    return snapshot;
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "background save result was not published"
+                );
+                thread::sleep(Duration::from_millis(10));
+            }
+        };
+        assert_eq!(act(26).volume, 26);
+        assert!(!wait(true).requested_playing);
+        std::fs::remove_dir(&path).unwrap();
+        act(42);
+        assert_eq!(wait(false).volume, 42);
+        assert_eq!(config::load_or_default(&path).unwrap().volume, 42);
+        c.shutdown().unwrap();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn failed_flush_keeps_controller_available_and_can_be_retried() {
         let id = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -1058,16 +1178,18 @@ mod shutdown_failure_test {
                 .unwrap()
         };
         act(Action::SetMuted { muted: true });
-        std::fs::remove_file(&path).unwrap();
+        // Persistence is asynchronous; install the failure before the first flush.
+        if path.exists() {
+            std::fs::remove_file(&path).unwrap();
+        }
         std::fs::create_dir(&path).unwrap();
-        let failed = act(Action::SetPlaying { playing: true });
-        assert!(failed.error.is_some());
+        act(Action::SetPlaying { playing: true });
         assert!(c.shutdown().is_err());
         assert!(c.snapshot().error.is_some());
         std::fs::remove_dir(&path).unwrap();
-        let recovered = act(Action::SetVolume { volume: 42 });
-        assert!(recovered.error.is_none());
+        act(Action::SetVolume { volume: 42 });
         c.shutdown().unwrap();
+        assert!(c.snapshot().error.is_none());
         assert_eq!(config::load_or_default(&path).unwrap().volume, 42);
         std::fs::remove_dir_all(dir).unwrap();
     }

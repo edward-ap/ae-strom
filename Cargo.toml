@@ -41,7 +41,7 @@ custom-protocol = ["tauri/custom-protocol"]
 live-audio = ["dep:cpal", "dep:symphonia", "dep:biquad", "dep:realfft", "dep:num-complex", "dep:reqwest", "dep:tokio", "dep:ringbuf", "dep:rubato", "dep:html-escape"]
 
 [[bin]]
-name = "ae-strom-live-check"
-path = "src/bin/live-check.rs"
+name = "icy_peek"
+path = "src/bin/icy_peek.rs"
 required-features = ["live-audio"]
 

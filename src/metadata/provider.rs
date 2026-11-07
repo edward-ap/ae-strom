@@ -127,6 +127,7 @@ impl From<SiblingError> for MetadataError {
 pub struct Provider {
     logger: Arc<dyn Logger>,
     json_poll_interval: Duration,
+    skip_audio_icy: bool,
 }
 
 impl Provider {
@@ -137,7 +138,14 @@ impl Provider {
         Self {
             logger: Arc::new(LogLogger),
             json_poll_interval: json_poll_interval.max(Duration::from_secs(5)),
+            skip_audio_icy: false,
         }
+    }
+
+    /// The audio response already established that this URL has no ICY.
+    pub(crate) fn fallback_only(mut self) -> Self {
+        self.skip_audio_icy = true;
+        self
     }
 
     /// Start watching metadata for a stream using hints, spawning worker threads.
@@ -149,8 +157,7 @@ impl Provider {
         on_strategy_resolved: impl Fn(StrategyHint) + Send + Sync + 'static,
         stop_flag: Arc<AtomicBool>,
     ) -> MetadataWatch {
-        let logger = self.logger.clone();
-        let poll = self.json_poll_interval;
+        let provider = self.clone();
         let cancel = stop_flag.clone();
         let worker = thread::spawn(move || {
             let _count = WorkerCount::start();
@@ -158,13 +165,11 @@ impl Provider {
             let on_strategy_resolved = Arc::new(on_strategy_resolved);
             while !stop_flag.load(Ordering::Acquire) {
                 let workers = Arc::new(Mutex::new(Vec::new()));
-                let _ = Self::run(
-                    logger.as_ref(),
+                let _ = provider.run(
                     stream_url.clone(),
                     hint.clone(),
                     on_info.clone(),
                     on_strategy_resolved.clone(),
-                    poll,
                     stop_flag.clone(),
                     workers.clone(),
                 );
@@ -207,15 +212,15 @@ impl Provider {
     }
 
     fn run(
-        logger: &dyn Logger,
+        &self,
         stream_url: String,
         hint: StrategyHint,
         on_info: Arc<dyn Fn(Info) + Send + Sync>,
         on_strategy_resolved: Arc<dyn Fn(StrategyHint) + Send + Sync>,
-        json_poll_interval: Duration,
         stop_flag: Arc<AtomicBool>,
         workers: Arc<Mutex<Vec<thread::JoinHandle<()>>>>,
     ) -> Result<(), MetadataError> {
+        let logger = self.logger.as_ref();
         // Helper to run a chosen strategy
         let try_icy = |url: &str| -> Result<(), MetadataError> {
             if stop_flag.load(Ordering::Acquire) {
@@ -230,9 +235,14 @@ impl Provider {
             if stop_flag.load(Ordering::Acquire) {
                 return Ok(());
             }
-            watch_status_json(url, json_poll_interval, on_info.clone(), stop_flag.clone())
-                .map(|worker| workers.lock().unwrap().push(worker))
-                .map_err(Into::into)
+            watch_status_json(
+                url,
+                self.json_poll_interval,
+                on_info.clone(),
+                stop_flag.clone(),
+            )
+            .map(|worker| workers.lock().unwrap().push(worker))
+            .map_err(Into::into)
         };
 
         // Use hint first (prefer cached metadata URL to avoid re-probing).
@@ -248,7 +258,9 @@ impl Provider {
             ));
             match hint_type {
                 "ICY" => {
-                    if try_icy(&hint.url).is_ok() {
+                    if !(self.skip_audio_icy && hint.url == stream_url)
+                        && try_icy(&hint.url).is_ok()
+                    {
                         on_strategy_resolved(StrategyHint {
                             r#type: hint_type.to_string(),
                             url: hint.url.clone(),
@@ -270,19 +282,21 @@ impl Provider {
         }
 
         // Try direct ICY
-        match try_icy(&stream_url) {
-            Ok(()) => {
-                on_strategy_resolved(StrategyHint {
-                    r#type: "ICY".into(),
-                    url: stream_url.clone(),
-                });
-                return Ok(());
-            }
-            Err(MetadataError::Direct(DirectError::NoIcyMetadata)) => {
-                logger.log("No ICY metadata found on main stream");
-            }
-            Err(e) => {
-                logger.log(&format!("Direct ICY failed: {e}"));
+        if !self.skip_audio_icy {
+            match try_icy(&stream_url) {
+                Ok(()) => {
+                    on_strategy_resolved(StrategyHint {
+                        r#type: "ICY".into(),
+                        url: stream_url.clone(),
+                    });
+                    return Ok(());
+                }
+                Err(MetadataError::Direct(DirectError::NoIcyMetadata)) => {
+                    logger.log("No ICY metadata found on main stream");
+                }
+                Err(e) => {
+                    logger.log(&format!("Direct ICY failed: {e}"));
+                }
             }
         }
 

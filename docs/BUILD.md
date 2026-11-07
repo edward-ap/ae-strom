@@ -90,7 +90,7 @@ Native acceptance scripts are optional developer tools and require an environmen
 
 `scripts/native-smoke.ps1` uses fake playback in a fresh profile. `scripts/single-exe-smoke.ps1` tests a synthetic portable migration and save/restart from another working directory, never requesting audio. Its internal startup-smoke marker is restricted to synthetic fixtures. A timeout is an uncertain own launch: inspect its process/evidence before retrying. Manual native checks can use isolated candidate copies as described by delivery evidence.
 
-The optional live-check tool requires explicit approved stream input and an isolated profile; it is not part of clean-clone build verification. The profile-verify example operates on an explicitly selected copy, checks canonical JSON save/load roundtrip without network, and reports legacy normalization differences. Normal `load_or_default` decoding is read-only; startup preparation owns verified migration writes. No personal station data is needed to reproduce the binary.
+The profile-verify example operates on an explicitly selected copy, checks canonical JSON save/load roundtrip without network, and reports legacy normalization differences. Normal `load_or_default` decoding is read-only; startup preparation owns verified migration writes. No personal station data is needed to reproduce the binary.
 
 ## Reproducibility limits
 

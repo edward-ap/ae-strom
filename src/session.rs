@@ -4,7 +4,7 @@ pub static ACTIVE_SESSION_OWNERS: AtomicUsize = AtomicUsize::new(0);
 // owns its audio engine, metadata supervisor and cancellable HTTP readers.
 use crate::{
     audio::{dsp::EqSettings, engine::Diagnostics, AudioEngine},
-    metadata::{provider::MetadataWatch, Info, Provider, StrategyHint},
+    metadata::{Info, StrategyHint},
 };
 use serde::Serialize;
 use std::{
@@ -15,13 +15,20 @@ use std::{
     thread,
     time::Duration,
 };
+mod metadata;
+use metadata::SessionMetadata;
+#[derive(Clone, Copy)]
+pub enum StationNamePolicy {
+    Replace,
+    FillEmpty,
+}
 #[derive(Clone)]
 pub struct SessionSpec {
     pub url: String,
     pub hint: StrategyHint,
     pub poll: Duration,
     pub cancel: Arc<AtomicBool>,
-    pub on_info: Arc<dyn Fn(Info) + Send + Sync>,
+    pub on_info: Arc<dyn Fn(Info, StationNamePolicy) + Send + Sync>,
     pub on_strategy: Arc<dyn Fn(StrategyHint) + Send + Sync>,
 }
 struct State {
@@ -94,7 +101,7 @@ impl LivePlayback {
                 }
                 let _count = Count;
                 let (lock, wake) = &*thread_shared;
-                let mut current: Option<(u64, AudioEngine, MetadataWatch)> = None;
+                let mut current: Option<(u64, AudioEngine, SessionMetadata)> = None;
                 let mut installed = 0;
                 loop {
                     let desired = {
@@ -140,22 +147,23 @@ impl LivePlayback {
                             state.active_revision = Some(installed);
                             state.status = "connecting".into();
                             state.error = None;
-                            engine.play_url(spec.url.clone());
+                            let (metadata, on_metadata) = SessionMetadata::new(spec.clone());
+                            engine.play_url_with_metadata(spec.url.clone(), on_metadata);
                             let revision = installed;
                             drop(state);
-                            let info = spec.on_info.clone();
-                            let strategy = spec.on_strategy.clone();
-                            let metadata = Provider::new(spec.poll).watch(
-                                spec.url,
-                                spec.hint,
-                                move |value| info(value),
-                                move |value| strategy(value),
-                                spec.cancel,
-                            );
                             current = Some((revision, engine, metadata));
                         } else {
                             state.status = "stopped".into();
                             state.error = None;
+                        }
+                    }
+                    if let Some((revision, _, metadata)) = &mut current {
+                        let valid = {
+                            let state = lock.lock().unwrap();
+                            *revision == state.revision && !state.shutdown
+                        };
+                        if valid {
+                            metadata.poll();
                         }
                     }
                     let mut state = lock.lock().unwrap();
