@@ -1,6 +1,6 @@
 # Æ Strøm
 
-Compact native Rust radio with Tæt UI and a Tauri WebView. Technical project/crate: ae-strom / ae_strom, version 0.1.0.
+Compact native Rust radio with Tæt UI and a Tauri WebView. Technical project/crate: ae-strom / ae_strom, version 0.1.1.
 
 ## Download for Windows
 

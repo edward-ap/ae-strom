@@ -4,7 +4,7 @@
     "displayName": "Æ Strøm",
     "technicalName": "ae-strom",
     "crate": "ae_strom",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "identifier": "local.edwardap.ae-strom",
     "dataRoot": "AeStrom"
   },

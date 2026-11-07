@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 2026-11-07
+## 0.1.1 — 2026-11-07
 
 ### Playback and metadata
 
@@ -41,8 +41,9 @@
   compatibility, metadata priority, container chains and worker shutdown.
 
 Detailed checks and historical local deliveries are recorded in
-[docs/VERIFICATION.md](docs/VERIFICATION.md). This entry does not create a binary
-release or change the package version. Earlier commits remain in Git history.
+[docs/VERIFICATION.md](docs/VERIFICATION.md). The Windows x64 release includes
+the player, metadata-only inspector, license archive, build information and
+SHA-256 sums. Earlier commits remain in Git history.
 
 ### Implementation commits
 

@@ -1,6 +1,6 @@
 # Configuration compatibility diagnostics
 
-These changes build on v0.1.0; they do not constitute a new binary release. A report containing only CONFIG-VALUES does not identify which value failed; it is not proof of a particular EQ or URL problem.
+These diagnostics are included in v0.1.1. A report containing only CONFIG-VALUES does not identify which value failed; it is not proof of a particular EQ or URL problem.
 
 ## Safe diagnostics
 

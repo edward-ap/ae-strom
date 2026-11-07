@@ -99,4 +99,4 @@ The final rebuilt executable is 18,642,944 bytes, SHA256 `1c6132b7d33da8063123f4
 
 See [installation and explicit profile selection](INSTALL.md). Delivery did not launch the application, change a real installation config, choose between two existing profiles, or clear old WebView data. Immediate binary rollback is available using the saved previous EXE; the unchanged previous profile is still retained. Keep new settings as well if rolling back after further use.
 
-Compatibility diagnostics and the safe offline checker are described in [CONFIG_COMPATIBILITY.md](CONFIG_COMPATIBILITY.md). These source changes do not imply a new binary release.
+Compatibility diagnostics and the safe offline checker included in v0.1.1 are described in [CONFIG_COMPATIBILITY.md](CONFIG_COMPATIBILITY.md).

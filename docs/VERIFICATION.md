@@ -450,3 +450,32 @@ synthetic loopback/fake playback; no public station or real audio device was
 opened by this cleanup. Personal profiles, logs and binaries are excluded from
 the source commits. CHANGELOG.md records the changes and implementation commits;
 this source update does not create a new binary release.
+
+## Windows release 0.1.1, 2026-11-07
+
+The publication candidate advances Cargo/Tauri/npm package identity and the
+matching lockfile root versions to 0.1.1. The existing v0.1.0 tag and assets are
+preserved. Both EXEs were built with the reviewed release-cargo.js path-remapping
+recipe from the v0.1.1 source inputs, into the isolated publication target.
+
+The remapped all-target suite passed 102/102 and remapped doc tests passed 7/7;
+formatting passed. The immediately preceding 102-browser, 55-no-audio and Clippy
+checks cover the unchanged implementation/UI (five inherited Clippy warnings).
+The version update introduces no new dependencies. Both executables pass the
+static Windows x64/CodeView/personal-path/credential check and contain 0.1.1
+version resources. The GUI binary has zero matches for station URLs read from
+the local profiles; the inspector intentionally retains its public default URL.
+
+- ae-strom.exe: 18,953,728 bytes, SHA256
+  35051e3478125f798250d34290593fd0a541b4b1de881330df32cd9d06de47c9.
+- icy_peek.exe: 4,147,200 bytes, SHA256
+  4cad4e6d97f37db7d931bc0ccb34d04723367f9e3a98bcd6af8dfb07dd27b421.
+
+The release assets also include icy_peek.cmd, BUILD_INFO.json, SHA256SUMS.txt and
+ae-strom-0.1.1-licenses.zip. The license archive is byte-identical to the previous
+archive after checking that all locked dependencies and archived application
+notices are unchanged. BUILD_INFO records the precise source commit and checks.
+Ignored local-data/publication-0.1.1-*.log contains the build/test evidence;
+local-data/publication-release-v0.1.1 contains the staged upload assets. No new
+native GUI, physical input or live audio acceptance is claimed. The running
+player, local installation and station profiles were not replaced or saved.
