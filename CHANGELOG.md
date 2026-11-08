@@ -1,24 +1,40 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 — 2026-11-08
 
-- Remove native hover hints from all player controls/ticker and transient EQ value popups; retain accessible labels and keyboard editing.
-- Report Windows certificate validity failures in English and stop retrying them; keep HTTPS certificate validation enabled without exceptions or HTTP downgrade.
+### Playback and errors
 
-- Preserve concrete startup/reconnect causes in the ticker (HTTP status, source read, decoder or audio output) instead of replacing every failure with one generic message.
+- Preserve Play intent when selecting an empty bank or slot. Stay silent there
+  and resume on a configured selection; an explicit Stop cancels that intent.
+- Keep concrete HTTP, decoder and output-device causes in startup/reconnect
+  messages instead of replacing them with a generic interruption message.
+- Report Windows certificate validity failures in English and stop retrying
+  them. HTTPS verification stays enabled without exceptions or HTTP downgrade.
 
-- Keep micro-player expansion inside the current monitor work area: preserve the right edge when it fits, otherwise expand right from the left edge or clamp the placement.
+### Window placement
 
-- Keep the upward player strip anchored during intermediate layout frames; prepare panel direction before native changes and apply Windows size/position atomically.
+- Collapse along the right edge and expand from whichever edge keeps the player
+  inside the monitor work area, including left-edge and mixed-DPI placement.
+- Open Settings and EQ above the strip when there is insufficient space below.
+  Preserve the strip position when closing or collapsing.
+- Prevent jumps during upward panel transitions by preparing the direction and
+  applying Windows size/position together; serialize rapid layout requests.
 
-- Open Settings/EQ above the player when the current monitor work area has insufficient space below; preserve the player-strip position when closing or collapsing.
+### Interface
 
-- Anchor compact/expanded window resizing to its right edge using physical outer geometry; serialize rapid layout changes.
+- Make bank letter shortcuts update the Settings page, including an already
+  active bank and changes while Settings is hidden. Preserve editor key guards.
+- Disable default WebView2 context menus while retaining keyboard Copy/Paste.
+- Remove hover hints from all controls and the ticker, including transient EQ
+  values. Preserve accessible labels, keyboard control and error descriptions.
 
-- Preserve Play intent across empty banks/slots: stay silent with no connection, resume on a configured selection, and honor an explicit Stop while waiting.
+### Verification and implementation history
 
-- Disable the default WebView2 context menus before showing the player; keep native keyboard clipboard editing.
-- Make bank letter shortcuts update the Settings page as well, including when the bank is already active or Settings is hidden. URL/editor key guards remain unchanged.
+- 111 Rust tests, 112 synthetic browser tests at 100/150% scale, and 40 native
+  fake-backend checks cover the accumulated fixes. Publication build evidence
+  and platform limits are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+- [40ec49b](https://github.com/edward-ap/ae-strom/commit/40ec49b598673957e65d5e9a9b51f19bf9da0970)
+  contains the playback, geometry, Settings, menu, hint and diagnostic fixes.
 
 ## 0.1.1 — 2026-11-07
 

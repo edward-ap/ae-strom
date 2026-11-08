@@ -736,3 +736,44 @@ and predecessor backup are recorded in ignored local-data/hints-certificate-deli
 replacement is skipped if that EXE is running. No live player was stopped,
 no personal profile was edited, and no commit/push or GitHub release update
 was performed in this iteration.
+
+
+## Windows release 0.1.2, 2026-11-08
+
+Release identity is 0.1.2 in Cargo, Tauri, npm and both lockfile roots. Commit
+40ec49b contains the accumulated playback, window placement, Settings, menus,
+hints and diagnostic fixes; the release commit adds version/history updates
+and synchronizes the native smoke Stop check with the UI command's own reply.
+
+The remapped publication all-target suite passed 111 tests and doc tests 7/7.
+Clippy passed with the same five inherited warnings. The 112-browser suite at
+100/150% scale covers the unchanged production UI; since that full run only
+the native test harness and package version changed. Syntax (36 files), types,
+pinned vendor/icons and formatting checks passed after the version update.
+
+Two initial publication smoke attempts failed the idle assertion: the old
+harness sent Stop through the UI and again directly to the backend, observing
+a different reply from the UI action clearing the injected error. The final
+harness captures and awaits the single UI Stop, then checks rendered state
+with a bounded deadline and records the observed ticker/snapshot on failure.
+Two consecutive runs of the final staged bytes passed 40/40 plus native
+work-area and selected-edge assertions, using fake playback and no audio.
+Evidence:
+- local-data/native-smoke-publication-0.1.2-dc2217440f0444a0869bffa2eef4f9be/native-ui.json
+- local-data/native-smoke-publication-0.1.2-9b47817390ba438d86f57b61779e5b78/native-ui.json
+
+Both final Windows x64 EXEs pass the static personal-path, credential-pattern
+and CodeView/PDB checks and contain 0.1.2 product-version resources:
+- ae-strom.exe: 19038208 bytes; SHA256 a36c5d06567a13dba542cc1ed6510535eba5a9bfb632991629a833f1e1d5135e.
+- icy_peek.exe: 4155392 bytes; SHA256 d7ac5927bb7b15f87f8c32f65e885ebbc644158d7ae36a807eb9b0c74f1d2e53.
+
+The license archive is reused after all 536 non-root locked package entries
+and five application notices matched the prior release. The added direct
+Windows 0.62.2 dependency was already in the archived Windows graph (359
+components). No third-party package version or pinned framework changed.
+
+Staged files are in ignored local-data/publication-release-v0.1.2. BUILD_INFO
+records the exact release source commit; SHA256SUMS covers both EXEs, CMD
+wrapper, license archive and build information. Earlier release assets remain
+untouched. The running player and personal profiles were not replaced or
+opened; physical OS-input, audio-device and macOS acceptance are not claimed.

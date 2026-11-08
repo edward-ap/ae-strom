@@ -98,11 +98,21 @@ export async function runNativeSmoke(ui, bridge) {
     const ownerHeight=document.querySelector('.radio-owner').getBoundingClientRect().height,clip=getComputedStyle(status).clipPath,tickerError=document.querySelector('.radio-ticker').textContent.includes('Synthetic native error');
     check('errors never create a protruding row',Math.abs(ownerHeight-36)<.75&&clip==='inset(50%)'&&tickerError,{ownerHeight,clip,tickerError,statusWidth:status.getBoundingClientRect().width,statusHeight:status.getBoundingClientRect().height});
   } finally {bridge.dispatch=originalDispatch;}
-  button('play').click();await new Promise(requestAnimationFrame);
-  const final=await bridge.dispatch({type:'setPlaying',playing:false});
+  // Observe the Stop sent by the real UI handler. A second direct backend
+  // Stop would race its reply against clearing the injected UI error.
+  const recoveryDispatch=bridge.dispatch;let stopReply,final;
+  try {
+    bridge.dispatch=action=>{const reply=recoveryDispatch(action);if(action.type==='setPlaying'&&action.playing===false)stopReply=reply;return reply;};
+    button('play').click();
+    if(!stopReply)throw Error('UI did not dispatch Stop after the synthetic failure');
+    final=await stopReply;
+  } finally {bridge.dispatch=recoveryDispatch;}
   const renderDeadline=performance.now()+3000;
-  while(ui.getState().snapshot.revision<final.revision&&performance.now()<renderDeadline)await new Promise(requestAnimationFrame);
-  check('Stop restores idle brand',document.querySelector('.radio-ticker .dui-scrolling-label__text').textContent==='-= Æ Strøm =-'&&document.querySelector('.radio-ticker').classList.contains('radio-ticker--idle'),{});
+  const idleRestored=()=>document.querySelector('.radio-ticker .dui-scrolling-label__text').textContent==='-= Æ Strøm =-'&&document.querySelector('.radio-ticker').classList.contains('radio-ticker--idle');
+  // A state event can precede completion of the earlier UI action, which also
+  // clears the synthetic error. Await the visible contract as well as revision.
+  while((ui.getState().snapshot.revision<final.revision||!idleRestored())&&performance.now()<renderDeadline)await new Promise(requestAnimationFrame);
+  check('Stop restores idle brand',idleRestored(),{ticker:document.querySelector('.radio-ticker').textContent,tickerLabel:document.querySelector('.radio-ticker').getAttribute('aria-label'),tickerClass:document.querySelector('.radio-ticker').className,rendered:{revision:ui.getState().snapshot.revision,status:ui.getState().snapshot.status,requestedPlaying:ui.getState().snapshot.requestedPlaying,error:ui.getState().snapshot.error}});
   check('stop snapshot',!final.requestedPlaying,{generation:final.generation});
   check('hover hints stay absent after panel and status changes',document.querySelectorAll('.radio-owner [title]:not([title=""])').length===0,{});
   const upwardFrames=layoutFrames.filter(frame=>frame.above);

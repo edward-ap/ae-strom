@@ -76,7 +76,7 @@ cargo test --release --locked --doc
 cargo clippy --release --locked --all-targets
 ```
 
-Browser installation is separate from WebView2 and is needed only for browser tests. npm test covers syntax/types/pinned vendor and 78 synthetic browser checks at 100/150% scaling. The current inherited Clippy warnings mean warnings-as-errors is not a passing gate. `npm run preview` starts a synthetic browser preview. Optional test helpers/examples are built with `--bins --examples`; they are not runtime application dependencies.
+Browser installation is separate from WebView2 and is needed only for browser tests. npm test covers syntax/types/pinned vendor and 112 synthetic browser checks at 100/150% scaling. The current inherited Clippy warnings mean warnings-as-errors is not a passing gate. `npm run preview` starts a synthetic browser preview. Optional test helpers/examples are built with `--bins --examples`; they are not runtime application dependencies.
 
 ## Application icon generation
 
@@ -86,7 +86,7 @@ The user's original artwork and reviewed transparent master are committed under 
 
 Normal startup is live-capable but Stopped. Config is adjacent `config.json`; Windows WebView2 data is in per-profile user AppData. A Cargo target/release executable uses the project-root profile only when the Cargo source markers are present. A plain portable copy uses its own directory. `--fake` is explicit and defaults to separate local-data/preview; `--data-dir` explicitly selects an absolute profile. No profile fallback occurs after a validation/write/conflict error. See [INSTALL.md](INSTALL.md) and [CONFIG_STORAGE.md](CONFIG_STORAGE.md).
 
-Native acceptance scripts are optional developer tools and require an environment where PowerShell script execution is permitted. Do not change or bypass policy to run them. The current environment blocks them; completed Rust/browser checks must not be reported as complete native coverage.
+Native acceptance scripts are optional developer tools and require an environment where PowerShell script execution is permitted. Do not change or bypass policy to run them. If policy blocks them, completed Rust/browser checks must not be reported as complete native coverage. Current Windows programmatic native evidence and its limits are recorded in [VERIFICATION.md](VERIFICATION.md).
 
 `scripts/native-smoke.ps1` uses fake playback in a fresh profile. `scripts/single-exe-smoke.ps1` tests a synthetic portable migration and save/restart from another working directory, never requesting audio. Its internal startup-smoke marker is restricted to synthetic fixtures. A timeout is an uncertain own launch: inspect its process/evidence before retrying. Manual native checks can use isolated candidate copies as described by delivery evidence.
 
