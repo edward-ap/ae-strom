@@ -99,6 +99,8 @@ updates do not overwrite a focused editor's text or selection.
 
 Click the **double-chevron button to the left of Play/Stop** to collapse the same player window to **102 × 36 logical pixels**. Only the expand chevron, Play/Stop button and five-band spectrum remain visible. Physical pixel dimensions depend on Windows display scaling.
 
+Expansion keeps the right edge fixed when there is space to the left; near the left edge it grows right instead. If neither anchor fits, the position is adjusted into the current monitor's work area. Settings and EQ open above the player when the current monitor has insufficient working space below; closing them leaves the player strip in place.
+
 Playback continues in the same Rust session. The current station, volume/mute, EQ settings and unsaved editor drafts are retained; collapsing does not stop or reconnect the stream. Click the chevron again to restore the full player and its previous panel. Settings, EQ and the remaining controls are available after expansion. The compact background/spectrum can still be used to drag the window.
 
 ## Screenshots

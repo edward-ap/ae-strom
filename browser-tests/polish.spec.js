@@ -21,11 +21,11 @@ test('toolbar SVG identity, contrast, alignment and unchanged hit targets', asyn
     expect(m.size).toEqual({ width: m.name === 'collapse' ? 13 : 18, height: m.name === 'collapse' ? 16 : 18 });
     expect(Math.abs(m.centerX)).toBeLessThanOrEqual(.75); expect(Math.abs(m.centerY)).toBeLessThanOrEqual(.75);
     expect(m.iconColor).toBe(m.color); expect(m.color).toBe('rgb(226, 230, 234)');
-    expect(m.background).toBe('rgb(0, 0, 0)'); expect(m.title).toBe(m.label); expect(m.hiddenFromAT).toBe('true');
+    expect(m.background).toBe('rgb(0, 0, 0)'); expect(m.title).toBe(''); expect(m.label).toBeTruthy(); expect(m.hiddenFromAT).toBe('true');
   }
   expect((await page.locator('.radio-owner').boundingBox())).toMatchObject({ width: 725, height: 36 });
   const mute = control(page, 'mute'); await mute.click();
-  await expect(mute).toHaveAttribute('aria-label', 'Unmute'); await expect(mute).toHaveAttribute('title', 'Unmute');
+  await expect(mute).toHaveAttribute('aria-label', 'Unmute'); await expect(mute).not.toHaveAttribute('title');
   expect(await mute.locator('svg').getAttribute('viewBox')).toBe('4 2 16 20');
   await control(page, 'play').click(); await expect(control(page, 'play').locator('svg rect')).toHaveCount(1);
   await control(page, 'collapse').click();
@@ -64,4 +64,40 @@ test('panel pressed state tracks visibility through keyboard, switch, close and 
   expect((await state(page)).snapshot.generation).toBe(generation);
   const actions = await page.evaluate(() => window.radioPreview.bridge.actions);
   expect(actions.filter(a => ['setPlaying', 'selectStation'].includes(a.type))).toEqual([]);
+});
+
+
+test('hover hints stay absent across panels, playback labels, metadata and errors', async ({ page }) => {
+  const noHints = async () => {
+    await expect(page.locator('.radio-owner [title]:not([title=""])')).toHaveCount(0);
+    await expect(page.locator('.radio-owner .dui-trackbar--show-value')).toHaveCount(0);
+  };
+  await noHints();
+  await control(page, 'play').click();
+  await expect(control(page, 'play')).toHaveAccessibleName('Stop');
+  await control(page, 'mute').click();
+  await expect(control(page, 'mute')).toHaveAccessibleName('Unmute');
+  await noHints();
+  await page.evaluate(() => window.radioPreview.bridge.update({ status: 'playing', requestedPlaying: true, displayTitle: 'Artist - Title', fullTitle: 'Artist - Full title' }));
+  await expect(page.locator('.radio-ticker')).toHaveAttribute('aria-label', /Artist - Title/);
+  await noHints();
+  await control(page, 'settings').click();
+  const url = page.locator('[data-station-slot="0"]');
+  await url.focus(); await expect(url).toHaveAccessibleName('Station 1 URL');
+  await url.press('Tab');
+  await page.getByRole('button', { name: 'Browse bank Z', exact: true }).click();
+  await noHints();
+  await control(page, 'equalizer').click();
+  const gain = page.getByRole('slider', { name: 'Preamp gain', exact: true });
+  await gain.hover(); await gain.focus(); await gain.press('ArrowUp');
+  await expect(gain).toHaveValue('1');
+  await expect(page.locator('.eq-sliders .dui-trackbar__value').first()).toBeHidden();
+  await noHints();
+  await page.evaluate(() => window.radioPreview.bridge.update({ error: 'Synthetic certificate failure' }));
+  await expect(page.locator('.radio-ticker')).toHaveAttribute('aria-label', /Error: .*Synthetic certificate failure/);
+  await expect(control(page, 'play')).toHaveAttribute('aria-description', 'Synthetic certificate failure');
+  await control(page, 'collapse').click();
+  await expect(control(page, 'collapse')).toHaveAccessibleName('Expand player');
+  await noHints();
+  await control(page, 'collapse').click(); await noHints();
 });

@@ -247,6 +247,7 @@ impl Server {
                     if number==0{block.extend(&meta[..8]);let _=stream.write_all(&block);}else{block.extend(meta);while !stop.load(Ordering::Acquire){if stream.write_all(&block).is_err(){break;}thread::sleep(Duration::from_millis(50));}}
                 },
                 "/json"=>{let body=b"{\"title\":\"Fixture Artist - JSON Track\"}";response(&mut stream,&format!("Content-Type: application/json\r\nContent-Length: {}\r\n",body.len()),body);},
+                "/unavailable"=>{let _=stream.write_all(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");},
                 _=>{let _=stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");},
             }
         }));
@@ -399,6 +400,120 @@ fn actor_remains_responsive_during_probe_switches_and_shutdown() {
     assert!(!stopped.requested_playing);
     action(&controller, Action::SetPlaying { playing: true });
     action(&controller, Action::SetMuted { muted: false });
+    clean(controller, dir);
+}
+
+#[test]
+fn empty_bank_keeps_play_intent_and_configured_selections_resume() {
+    let _serial = SERIAL.lock().unwrap();
+    let server = Server::new();
+    let (controller, dir) = actor();
+    for bank in [0, 1] {
+        action(
+            &controller,
+            Action::SetStationUrl {
+                bank,
+                slot: 0,
+                url: server.path("/pcmicy"),
+            },
+        );
+    }
+    action(&controller, Action::SetVolume { volume: 17 });
+    action(&controller, Action::SetMuted { muted: true });
+    let playing = action(&controller, Action::SetPlaying { playing: true });
+    wait(
+        || controller.snapshot().status == "playing",
+        Duration::from_secs(4),
+    );
+    let before = server.requests.load(Ordering::Acquire);
+    let mut generation = playing.generation;
+    for bank in [22, 25] {
+        let empty = action(&controller, Action::SelectStation { bank, slot: 0 });
+        assert!(empty.requested_playing);
+        assert_eq!(empty.status, "stopped");
+        assert_eq!(empty.full_title, "No stream URL");
+        assert!(empty.error.is_none());
+        assert!(empty.generation > generation);
+        generation = empty.generation;
+        wait(
+            || {
+                let workers = session::worker_counts();
+                ["http", "metadata", "audio"]
+                    .iter()
+                    .all(|key| workers[*key] == 0)
+            },
+            Duration::from_secs(3),
+        );
+        let waiting = action(&controller, Action::SetVolume { volume: 17 });
+        assert!(waiting.requested_playing && waiting.error.is_none());
+        assert_eq!(server.requests.load(Ordering::Acquire), before);
+    }
+    for bank in [0, 1] {
+        let before = server.requests.load(Ordering::Acquire);
+        let resumed = action(&controller, Action::SelectStation { bank, slot: 0 });
+        assert!(resumed.requested_playing && resumed.muted);
+        assert_eq!(resumed.volume, 17);
+        assert!(resumed.generation > generation);
+        generation = resumed.generation;
+        wait(
+            || {
+                controller.snapshot().status == "playing"
+                    && server.requests.load(Ordering::Acquire) > before
+            },
+            Duration::from_secs(4),
+        );
+    }
+    clean(controller, dir);
+}
+
+#[test]
+fn empty_bank_stop_and_play_control_whether_configured_slots_resume() {
+    let _serial = SERIAL.lock().unwrap();
+    let server = Server::new();
+    let (controller, dir) = actor();
+    action(
+        &controller,
+        Action::SetStationUrl {
+            bank: 0,
+            slot: 0,
+            url: server.path("/pcmicy"),
+        },
+    );
+    action(&controller, Action::SetPlaying { playing: true });
+    wait(
+        || controller.snapshot().status == "playing",
+        Duration::from_secs(4),
+    );
+    assert!(action(&controller, Action::SelectStation { bank: 22, slot: 0 }).requested_playing);
+    wait(
+        || {
+            let workers = session::worker_counts();
+            ["http", "metadata", "audio"]
+                .iter()
+                .all(|key| workers[*key] == 0)
+        },
+        Duration::from_secs(3),
+    );
+    let before = server.requests.load(Ordering::Acquire);
+    let stopped = action(&controller, Action::SetPlaying { playing: false });
+    assert!(!stopped.requested_playing);
+    let selected = action(&controller, Action::SelectStation { bank: 0, slot: 0 });
+    assert!(!selected.requested_playing);
+    assert_eq!(selected.status, "stopped");
+    assert_eq!(server.requests.load(Ordering::Acquire), before);
+    action(&controller, Action::SelectStation { bank: 22, slot: 0 });
+    let armed = action(&controller, Action::SetPlaying { playing: true });
+    assert!(armed.requested_playing && armed.error.is_none());
+    assert_eq!(armed.status, "stopped");
+    assert_eq!(server.requests.load(Ordering::Acquire), before);
+    assert!(action(&controller, Action::SelectStation { bank: 0, slot: 0 }).requested_playing);
+    wait(
+        || {
+            controller.snapshot().status == "playing"
+                && server.requests.load(Ordering::Acquire) > before
+        },
+        Duration::from_secs(4),
+    );
     clean(controller, dir);
 }
 
@@ -624,6 +739,45 @@ fn icy_reopens_after_partial_frame_and_json_workers_join() {
         0
     );
     assert_eq!(net::ACTIVE_REQUESTS.load(Ordering::Acquire), 0);
+}
+
+#[test]
+fn transient_start_failure_reports_http_status_and_recovers_on_selection() {
+    let _serial = SERIAL.lock().unwrap();
+    let server = Server::new();
+    let (controller, dir) = actor();
+    for (slot, path) in [(0, "/unavailable"), (1, "/pcmicy")] {
+        action(
+            &controller,
+            Action::SetStationUrl {
+                bank: 0,
+                slot,
+                url: server.path(path),
+            },
+        );
+    }
+    action(&controller, Action::SetPlaying { playing: true });
+    wait(
+        || controller.snapshot().status == "reconnecting",
+        Duration::from_secs(4),
+    );
+    let failed = controller.snapshot();
+    assert!(failed.requested_playing);
+    let reason = failed.error.as_deref().unwrap();
+    assert!(
+        reason.contains("502"),
+        "specific HTTP cause was lost: {reason}"
+    );
+    assert!(reason.contains("retrying"));
+    assert!(!reason.contains("Stream or output interrupted"));
+    let resumed = action(&controller, Action::SelectStation { bank: 0, slot: 1 });
+    assert!(resumed.generation > failed.generation);
+    wait(
+        || controller.snapshot().status == "playing",
+        Duration::from_secs(4),
+    );
+    assert!(controller.snapshot().error.is_none());
+    clean(controller, dir);
 }
 
 #[test]

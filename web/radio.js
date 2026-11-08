@@ -18,12 +18,14 @@ export function createRadioUI(host, bridge) {
   const owner = new Panel(host, { name: 'radioOwner', css: 'radio-owner', padding: 0 });
   const strip = new Panel({ name: 'strip', css: 'player-strip', padding: 0 }); owner.add(strip);
   const commands = new CommandRegistry();
-  const setLabel = (control, name) => { if (control instanceof IconButton) control.tooltip = name; control.element?.setAttribute('aria-label', name); control.element?.setAttribute('title', name); const focus = control.getFocusElement(); focus?.setAttribute('aria-label', name); };
+  // Accessible names stay available without browser hover hints. Icon changes
+  // can recreate Tæt titles, so clear them whenever the label is refreshed.
+  const setLabel = (control, name) => { control.element?.setAttribute('aria-label', name); control.element?.removeAttribute('title'); const focus = control.getFocusElement(); focus?.setAttribute('aria-label', name); focus?.removeAttribute('title'); };
   const addButton = (parent, name, text, label, click) => {
     const button = new Button({ name, text, onClick: click }); parent.add(button); setLabel(button, label); button.element.dataset.control = name; return button;
   };
   const addIconButton = (name, icon, label, click, pressed = null) => {
-    const button = new IconButton({ name, icon: `radio-${icon}`, tooltip: label, pressed, onClick: click });
+    const button = new IconButton({ name, icon: `radio-${icon}`, pressed, onClick: click });
     strip.add(button); setLabel(button, label); button.element.dataset.control = name; return button;
   };
   const report = error => { if (!destroyed) { errorText = String(error?.message || error); renderStatus(); } };
@@ -83,8 +85,8 @@ export function createRadioUI(host, bridge) {
   });
   const frequencies = ['Preamp', '32', '64', '125', '250', '500', '1K', '2K', '4K', '8K', '16KHz'];
   for (let i = 0; i < 11; i++) {
-    const slider = new TrackBar({ name: `eqBand${i}`, label: frequencies[i], labelPosition: 'top', min: -15, max: 15, step: 1, value: 0, orientation: 'vertical', invert: false, scale: 'none', showTickLabels: false, thumbShape: 'grip', showValue: true, valuePosition: 'top', valueFormatter: value => `${value > 0 ? '+' : ''}${value} dB`, onChange: () => { if (!eqLoading) run({ type: 'setEq', preamp: bandControls[0].value.get(), bands: bandControls.slice(1).map(c => c.value.get()) }); } });
-    eqSliders.add(slider); setLabel(slider, i ? `${frequencies[i].replace('Hz', '')} Hz gain` : 'Preamp gain'); slider.element.removeAttribute('title'); bandControls.push(slider);
+    const slider = new TrackBar({ name: `eqBand${i}`, label: frequencies[i], labelPosition: 'top', min: -15, max: 15, step: 1, value: 0, orientation: 'vertical', invert: false, scale: 'none', showTickLabels: false, thumbShape: 'grip', showValue: false, valuePosition: 'top', valueFormatter: value => `${value > 0 ? '+' : ''}${value} dB`, onChange: () => { if (!eqLoading) run({ type: 'setEq', preamp: bandControls[0].value.get(), bands: bandControls.slice(1).map(c => c.value.get()) }); } });
+    eqSliders.add(slider); setLabel(slider, i ? `${frequencies[i].replace('Hz', '')} Hz gain` : 'Preamp gain'); bandControls.push(slider);
     const input = slider.getFocusElement();
     const beginDrag = () => { slider.element.dataset.dragging = 'true'; };
     const endDrag = () => { delete slider.element.dataset.dragging; };
@@ -125,11 +127,11 @@ export function createRadioUI(host, bridge) {
     ticker.element.classList.toggle('radio-ticker--idle', idle);
     ticker.setPaused(idle);
     ticker.setText(title);
-    ticker.element.title = `${snapshot?.mode === 'fake' ? 'Synthetic preview - no audio | ' : ''}${message || (idle ? IDLE_TITLE : fullTitle)} | ${snapshot?.status || 'stopped'}`;
+    // ScrollingLabel.setText recreates its native title on every update.
+    ticker.element.removeAttribute('title');
     ticker.element.setAttribute('aria-label', `${message ? 'Error: ' : ''}${snapshot?.mode === 'fake' ? 'Synthetic preview. No audio. ' : ''}${title}`);
     for (const control of [chevron, play]) {
       control.element.setAttribute('aria-description', message);
-      control.element.title = `${control.element.getAttribute('aria-label')}${message ? ': ' + message : ''}`;
     }
     requestWindowLayout();
   }
@@ -139,7 +141,19 @@ export function createRadioUI(host, bridge) {
     const key = `${compact}:${width}:${height}`;
     if (key === lastLayout) return layoutPromise;
     lastLayout = key;
-    layoutPromise = Promise.resolve().then(() => bridge.setWindowLayout({ compact, width, height }));
+    const layout = { compact, width, height };
+    layoutPromise = layoutPromise.catch(() => {}).then(async () => {
+      const placement = await bridge.prepareWindowLayout?.(layout);
+      if (destroyed) return;
+      // Opening upwards starts at a 36px viewport, so installing the bottom
+      // anchor cannot move the strip. Keep that anchor through closing until
+      // the native viewport is short again.
+      if (placement?.panelsAbove) owner.element.classList.add('panels-above');
+      return bridge.setWindowLayout(layout, placement);
+    }).then(result => {
+      if (!destroyed) owner.element.classList.toggle('panels-above', result?.panelsAbove === true);
+      return result;
+    });
     // Event handlers report failures; startup still awaits the rejecting promise.
     layoutPromise.catch(report);
     return layoutPromise;
@@ -161,8 +175,9 @@ export function createRadioUI(host, bridge) {
     compact = value;
     if (compact && host.contains(document.activeElement) && ![chevron.getFocusElement(), play.getFocusElement()].includes(document.activeElement)) chevron.focus();
     renderLayout();
+    return layoutPromise;
   }
-  function showPanel(next) { compact = false; panel = panel === next ? null : next; if (panel) lastPanel = panel; renderLayout(); }
+  function showPanel(next) { compact = false; panel = panel === next ? null : next; if (panel) lastPanel = panel; renderLayout(); return layoutPromise; }
   function browseBank(bank) { if (!snapshot) return; browsedBank = bank; loadBank(); }
   function loadBank() {
     bankLoaded = browsedBank;
@@ -229,7 +244,11 @@ export function createRadioUI(host, bridge) {
     if (event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'KeyC') { event.preventDefault(); Promise.resolve(bridge.copyTitle()).catch(report); return; }
     if (!snapshot || event.ctrlKey || event.altKey || event.metaKey) return;
     let action;
-    if (/^Key[A-Z]$/.test(event.code) && !event.shiftKey) action = { type: 'selectStation', bank: event.code.charCodeAt(3) - 65, slot: snapshot.activeSlot };
+    if (/^Key[A-Z]$/.test(event.code) && !event.shiftKey) {
+      const bank = event.code.charCodeAt(3) - 65;
+      browseBank(bank);
+      action = { type: 'selectStation', bank, slot: snapshot.activeSlot };
+    }
     else if (/^(Digit|Numpad)[0-9]$/.test(event.code) && !event.shiftKey) action = { type: 'selectStation', bank: snapshot.activeBank, slot: (Number(event.code.slice(-1)) + 9) % 10 };
     else if (event.code === 'NumpadAdd' || event.key === '+') action = { type: 'setVolume', volume: Math.min(100, snapshot.volume + 5) };
     else if (event.code === 'NumpadSubtract' || event.key === '-') action = { type: 'setVolume', volume: Math.max(0, snapshot.volume - 5) };

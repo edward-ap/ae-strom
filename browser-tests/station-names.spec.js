@@ -87,3 +87,24 @@ test('a rejected URL remains available for correction and cannot become a statio
   expect(await page.evaluate(() => window.radioPreview.ui.getState().snapshot.stations[0].url)).toBe('https://synthetic.invalid/station/1');
   expect(await page.evaluate(() => window.radioPreview.ui.getState().snapshot.stations[0].name)).toBe('Synthetic station 1');
 });
+
+
+test('bank letter shortcuts update hidden Settings and resync an already active bank', async ({ page }) => {
+  await page.getByRole('button', { name: 'Browse bank Z', exact: true }).click();
+  // A is already active: the hotkey must still change the Settings page.
+  await page.getByRole('button', { name: 'Station settings', exact: true }).focus();
+  await page.keyboard.press('KeyA');
+  await expect.poll(() => page.evaluate(() => window.radioPreview.ui.getState().browsedBank)).toBe(0);
+  await expect(field(page)).toHaveValue('Synthetic station 1');
+  // Keep the panel closed while selecting the next bank.
+  await page.getByRole('button', { name: 'Station settings', exact: true }).click();
+  await page.keyboard.press('KeyB');
+  await expect.poll(() => page.evaluate(() => window.radioPreview.ui.getState().snapshot.activeBank)).toBe(1);
+  await page.getByRole('button', { name: 'Station settings', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Browse bank B', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(field(page)).toHaveValue('Synthetic station 11');
+  await field(page).focus();
+  await field(page).press('KeyC');
+  expect(await page.evaluate(() => window.radioPreview.ui.getState().browsedBank)).toBe(1);
+  expect(await page.evaluate(() => window.radioPreview.ui.getState().snapshot.activeBank)).toBe(1);
+});

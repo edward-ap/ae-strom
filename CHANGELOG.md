@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- Remove native hover hints from all player controls/ticker and transient EQ value popups; retain accessible labels and keyboard editing.
+- Report Windows certificate validity failures in English and stop retrying them; keep HTTPS certificate validation enabled without exceptions or HTTP downgrade.
+
+- Preserve concrete startup/reconnect causes in the ticker (HTTP status, source read, decoder or audio output) instead of replacing every failure with one generic message.
+
+- Keep micro-player expansion inside the current monitor work area: preserve the right edge when it fits, otherwise expand right from the left edge or clamp the placement.
+
+- Keep the upward player strip anchored during intermediate layout frames; prepare panel direction before native changes and apply Windows size/position atomically.
+
+- Open Settings/EQ above the player when the current monitor work area has insufficient space below; preserve the player-strip position when closing or collapsing.
+
+- Anchor compact/expanded window resizing to its right edge using physical outer geometry; serialize rapid layout changes.
+
+- Preserve Play intent across empty banks/slots: stay silent with no connection, resume on a configured selection, and honor an explicit Stop while waiting.
+
+- Disable the default WebView2 context menus before showing the player; keep native keyboard clipboard editing.
+- Make bank letter shortcuts update the Settings page as well, including when the bank is already active or Settings is hidden. URL/editor key guards remain unchanged.
+
 ## 0.1.1 — 2026-11-07
 
 ### Playback and metadata

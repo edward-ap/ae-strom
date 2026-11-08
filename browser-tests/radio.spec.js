@@ -39,12 +39,16 @@ test('browsed bank is independent, physical key and editor/default guards',async
  await page.getByRole('button',{name:'Station settings',exact:true}).click();await page.getByRole('button',{name:'Browse bank Z',exact:true}).click();
  expect((await state(page)).snapshot.activeBank).toBe(0);expect((await state(page)).browsedBank).toBe(25);
  const editor=input(page,9);await editor.fill(urlFor(0));const calls=await page.evaluate(()=>window.radioPreview.bridge.actions.length);
- await editor.press('Control+A');await editor.press('Control+C');await editor.press('Control+X');await editor.press('Control+V');
+ await editor.press('Control+A');await editor.press('Control+C');await editor.press('Control+X');
+ await expect(editor).toHaveValue('');
+ await editor.press('Control+V');await expect(editor).toHaveValue(urlFor(0));
  expect(await page.evaluate(()=>window.radioPreview.bridge.copies.length)).toBe(0);
  expect(await page.evaluate(()=>window.radioPreview.bridge.actions.length)).toBe(calls);
  await page.getByRole('button',{name:'Station settings',exact:true}).focus();
  await page.keyboard.press('KeyB');await page.keyboard.press('Digit0');await page.keyboard.press('NumpadAdd');await page.keyboard.press('NumpadMultiply');await page.keyboard.press('Control+C');
  await expect.poll(async()=> (await state(page)).snapshot.activeBank).toBe(1);
+ expect((await state(page)).browsedBank).toBe(1);
+ await expect(page.getByRole('button',{name:'Browse bank B',exact:true})).toHaveAttribute('aria-pressed','true');
  expect((await state(page)).snapshot.activeSlot).toBe(9);expect((await state(page)).snapshot.volume).toBe(85);expect((await state(page)).snapshot.muted).toBe(true);
  expect(await page.evaluate(()=>window.radioPreview.bridge.copies.length)).toBe(1);
  const after=await page.evaluate(()=>window.radioPreview.bridge.actions.length);
@@ -175,4 +179,67 @@ test('SpectrumAnalyzer public API compatibility and pending-frame lifecycle on r
  await page.waitForTimeout(80);expect(errors).toEqual([]);
  for(const name of ['idle','active'])await testInfo.attach(`spectrum-${name}`,{body:Buffer.from(result[name].split(',')[1],'base64'),contentType:'image/png'});
  const {idle,active,pause,resumed,hidden,shown,...metrics}=result;await testInfo.attach('spectrum-public-lifecycle',{body:JSON.stringify(metrics,null,2),contentType:'application/json'});
+});
+
+
+test('rapid compact toggles serialize native layouts and retain each requested size', async ({ page }) => {
+ await page.evaluate(() => {
+  window.queuedLayouts=[];window.finishLayouts=[];
+  window.radioPreview.bridge.setWindowLayout=layout=>new Promise(resolve=>{
+   window.queuedLayouts.push(layout);window.finishLayouts.push(resolve);
+  });
+  const ui=window.radioPreview.ui;
+  window.layoutCompletions=[ui.setCompact(true),ui.setCompact(false)];
+ });
+ await expect.poll(()=>page.evaluate(()=>window.queuedLayouts.length)).toBe(1);
+ expect(await page.evaluate(()=>window.queuedLayouts[0])).toEqual({compact:true,width:102,height:36});
+ await page.evaluate(()=>window.finishLayouts.shift()());
+ await expect.poll(()=>page.evaluate(()=>window.queuedLayouts.length)).toBe(2);
+ expect(await page.evaluate(()=>window.queuedLayouts[1])).toEqual({compact:false,width:725,height:36});
+ await page.evaluate(()=>window.finishLayouts.shift()());
+ await page.evaluate(()=>Promise.all(window.layoutCompletions));
+ expect((await state(page)).compact).toBe(false);
+});
+
+
+test('Settings and EQ can open above the strip without replacing editor controls', async ({page})=>{
+ await page.evaluate(()=>{window.radioPreview.bridge.panelsAbove=true;});
+ await page.getByRole('button',{name:'Station settings',exact:true}).click();
+ await expect(page.locator('.radio-owner')).toHaveClass(/panels-above/);
+ const order=selector=>page.evaluate(selector=>{const bar=document.querySelector('.player-strip').getBoundingClientRect(),panel=document.querySelector(selector).getBoundingClientRect();return panel.bottom<=bar.top+.75;},selector);
+ expect(await order('.settings-panel')).toBe(true);
+ await page.locator('[data-station-slot="0"]').focus();await page.locator('[data-station-slot="0"]').press('Control+A');
+ await page.getByRole('button',{name:'Equalizer',exact:true}).click();expect(await order('.eq-panel')).toBe(true);
+ await page.getByRole('button',{name:'Collapse player',exact:true}).click();
+ await expect(page.locator('.radio-owner')).not.toHaveClass(/panels-above/);
+ await page.getByRole('button',{name:'Expand player',exact:true}).click();
+ await expect(page.locator('.radio-owner')).toHaveClass(/panels-above/);
+ expect(await order('.eq-panel')).toBe(true);
+});
+
+
+test('upward native strip stays anchored while opening and closing IPC is pending', async ({page})=>{
+ await page.setViewportSize({width:725,height:36});
+ await page.evaluate(()=>{
+  document.documentElement.classList.add('native-window');
+  const {ui,bridge}=window.radioPreview;window.pendingLayoutCommits=[];
+  bridge.prepareWindowLayout=async layout=>({panelsAbove:layout.height>36});
+  bridge.setWindowLayout=(layout,placement)=>new Promise(resolve=>window.pendingLayoutCommits.push({layout,placement,resolve}));
+  window.openingPanel=ui.showPanel('settings');
+ });
+ await expect.poll(()=>page.evaluate(()=>window.pendingLayoutCommits.length)).toBe(1);
+ expect(await page.locator('.player-strip').evaluate(e=>e.getBoundingClientRect().top)).toBe(0);
+ await expect(page.locator('.radio-owner')).toHaveClass(/panels-above/);
+ await page.setViewportSize({width:725,height:258});
+ await page.evaluate(()=>window.pendingLayoutCommits.shift().resolve({panelsAbove:true}));
+ await page.evaluate(()=>window.openingPanel);
+ expect(await page.locator('.player-strip').evaluate(e=>e.getBoundingClientRect().top)).toBe(222);
+ await page.evaluate(()=>{window.closingPanel=window.radioPreview.ui.showPanel('settings');});
+ await expect.poll(()=>page.evaluate(()=>window.pendingLayoutCommits.length)).toBe(1);
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ expect(await page.locator('.player-strip').evaluate(e=>e.getBoundingClientRect().top)).toBe(222);
+ await page.setViewportSize({width:725,height:36});
+ await page.evaluate(()=>window.pendingLayoutCommits.shift().resolve({panelsAbove:false}));
+ await page.evaluate(()=>window.closingPanel);
+ expect(await page.locator('.player-strip').evaluate(e=>e.getBoundingClientRect().top)).toBe(0);
 });

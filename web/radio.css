@@ -90,8 +90,7 @@ html,body{margin:0;background:#000;color:#e9e9ed;font:var(--dui-font-size)/var(-
 .radio-owner .eq-sliders .dui-trackbar__input{height:140px}
 .radio-owner .eq-sliders .dui-trackbar__label{grid-column:1!important;grid-row:2!important;height:18px;line-height:18px;color:#cbd0d8;text-align:center}
 .radio-owner .eq-sliders .dui-trackbar__range-label,.radio-owner .eq-sliders .dui-trackbar__ticks{display:none}
-.radio-owner .eq-sliders .dui-trackbar__value{position:absolute;left:50%;top:-20px;transform:translateX(-50%);width:54px;height:18px;line-height:18px;min-width:0;padding:0;text-align:center;font-size:var(--dui-font-size);color:#eef1f5;visibility:hidden;pointer-events:none}
-.radio-owner .eq-sliders .dui-trackbar:is(:hover,:focus-within,[data-dragging="true"]) .dui-trackbar__value{visibility:visible}
+.radio-owner .eq-sliders .dui-trackbar__value{display:none!important;visibility:hidden}
 .radio-owner .eq-sliders .dui-trackbar{z-index:1}
 .radio-owner .eq-grid{position:absolute;inset:0;padding:0!important;pointer-events:none;z-index:0}
 .radio-owner .eq-grid-line{position:absolute;height:1px!important;min-height:0;padding:0!important;transform:translateY(-50%);background:#383b40}
@@ -130,3 +129,15 @@ html,body{margin:0;background:#000;color:#e9e9ed;font:var(--dui-font-size)/var(-
 
 /* Request the same web font for native option DOM; OS picker rendering is platform-owned. */
 .radio-owner :is(option,optgroup,.radio-status){font-family:var(--dui-font-family);font-size:var(--dui-font-size)}
+
+/* Keep the player strip below panels when the native monitor layout opens up. */
+.radio-owner.panels-above{display:flex!important;flex-direction:column}
+.radio-owner.panels-above>.player-strip{order:1;flex-shrink:0}
+.radio-owner.panels-above>:is(.settings-panel,.eq-panel){border-top:0;border-bottom:1px solid #43454e}
+
+/* Native viewport anchoring survives intermediate DOM/IPC frames. Preview
+   retains its document-flow canvas; only the transport bridge marks a host. */
+.native-window .radio-owner.panels-above{display:block!important;padding-bottom:36px!important}
+.native-window .radio-owner.panels-above>.player-strip{position:fixed;left:0;right:0;bottom:0;z-index:1}
+.native-window .radio-owner.compact.panels-above{width:102px!important}
+.native-window .radio-owner.compact.panels-above>.player-strip{left:auto}

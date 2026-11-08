@@ -444,11 +444,12 @@ impl Core {
         let idx = self.index();
         let station = self.cfg.presets[idx].clone();
         if station.url.is_empty() {
-            self.requested = false;
+            // Keep the user's Play intent while this slot has nothing to play.
+            // Selecting a configured slot resumes; only an explicit Stop disarms it.
             self.status = "stopped".into();
             self.title = "No stream URL".into();
             self.cancellation.store(true, Ordering::Release);
-            return Err("No stream URL for the selected slot".into());
+            return Ok(());
         }
         if let Err(error) = validate_url(&station.url) {
             self.requested = false;

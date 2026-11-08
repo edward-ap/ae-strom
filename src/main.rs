@@ -5,7 +5,10 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
     path::PathBuf,
-    sync::{Arc, Condvar, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Condvar, Mutex,
+    },
 };
 use tauri::{Emitter, Manager, State, WebviewWindow};
 
@@ -15,6 +18,8 @@ struct Host {
     data: PathBuf,
     smoke: bool,
     layouts: Mutex<Vec<Value>>,
+    layout_lock: Mutex<()>,
+    panels_above: AtomicBool,
     startup: Arc<(Mutex<StartupState>, Condvar)>,
 }
 #[derive(Clone, Deserialize, serde::Serialize)]
@@ -29,6 +34,7 @@ struct StartupState {
     host_ready: bool,
     saved: Option<(i32, i32)>,
     evidence: Option<Value>,
+    default_context_menus_enabled: Option<bool>,
 }
 #[tauri::command]
 async fn ui_ready(
@@ -64,7 +70,7 @@ async fn ui_ready(
         let positioned = window.outer_position().map_err(|e|e.to_string())?;
         let size_before = window.inner_size().map_err(|e|e.to_string())?;
         window.show().map_err(|e|e.to_string())?;
-        state.evidence=Some(json!({"visibleBefore":visible_before,"visibleAfter":window.is_visible().map_err(|e|e.to_string())?,"positionBeforeShow":positioned,"positionAfterShow":window.outer_position().map_err(|e|e.to_string())?,"sizeBeforeShow":size_before,"sizeAfterShow":window.inner_size().map_err(|e|e.to_string())?,"planned":planned,"monitors":monitors,"ui":info,"arbitraryDelay":false}));
+        state.evidence=Some(json!({"visibleBefore":visible_before,"visibleAfter":window.is_visible().map_err(|e|e.to_string())?,"positionBeforeShow":positioned,"positionAfterShow":window.outer_position().map_err(|e|e.to_string())?,"sizeBeforeShow":size_before,"sizeAfterShow":window.inner_size().map_err(|e|e.to_string())?,"planned":planned,"monitors":monitors,"ui":info,"arbitraryDelay":false,"defaultContextMenusEnabled":state.default_context_menus_enabled}));
         Ok(())
     }).await.map_err(|e|e.to_string())?
 }
@@ -101,13 +107,23 @@ struct WindowLayout {
     compact: bool,
     width: f64,
     height: f64,
+    #[serde(default)]
+    prepare: bool,
+    #[serde(default, rename = "panelsAbove")]
+    planned_above: Option<bool>,
 }
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LayoutResult {
+    panels_above: bool,
+}
+
 #[tauri::command]
 async fn set_window_layout(
     window: WebviewWindow,
     layout: WindowLayout,
     state: State<'_, Host>,
-) -> Result<(), String> {
+) -> Result<LayoutResult, String> {
     main_window(&window)?;
     let max_width = if layout.compact { 400. } else { 1400. };
     if !layout.width.is_finite()
@@ -117,16 +133,169 @@ async fn set_window_layout(
     {
         return Err("Window dimensions out of range".into());
     }
-    window
-        .set_size(tauri::LogicalSize::new(layout.width, layout.height))
-        .map_err(|e| e.to_string())?;
+    let _layout_guard = state.layout_lock.lock().map_err(|e| e.to_string())?;
+    let before_position = window.outer_position().map_err(|e| e.to_string())?;
+    let before_size = window.outer_size().map_err(|e| e.to_string())?;
+    let before_inner = window.inner_size().map_err(|e| e.to_string())?;
+    let scale = window.scale_factor().map_err(|e| e.to_string())?;
+    let strip_height = (36.0 * scale).round().max(1.0) as u32;
+    // The panel lives in the client area. Non-client frame pixels belong to
+    // the collapsed window and must never be counted as panel height.
+    let strip_y = ae_strom::startup::player_strip_y(
+        before_position.y,
+        before_inner.height,
+        strip_height,
+        state.panels_above.load(Ordering::Acquire),
+    );
+    let center_x = i64::from(before_position.x) + i64::from(before_size.width) / 2;
+    let center_y = i64::from(strip_y) + i64::from(strip_height) / 2;
+    let monitor = window
+        .available_monitors()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|monitor| {
+            let p = monitor.position();
+            let size = monitor.size();
+            center_x >= i64::from(p.x)
+                && center_x < i64::from(p.x) + i64::from(size.width)
+                && center_y >= i64::from(p.y)
+                && center_y < i64::from(p.y) + i64::from(size.height)
+        });
+    let monitor = match monitor {
+        Some(m) => m,
+        None => window
+            .current_monitor()
+            .map_err(|e| e.to_string())?
+            .ok_or("No monitor for player layout")?,
+    };
+    let work = monitor.work_area();
+    let target_inner =
+        tauri::LogicalSize::new(layout.width, layout.height).to_physical::<u32>(scale);
+    let frame_width = before_size.width.saturating_sub(before_inner.width);
+    let frame_height = before_size.height.saturating_sub(before_inner.height);
+    let target_outer = tauri::PhysicalSize::new(
+        target_inner.width.saturating_add(frame_width),
+        target_inner.height.saturating_add(frame_height),
+    );
+    let x = ae_strom::startup::fit_resize_x(
+        before_position.x,
+        before_size.width,
+        target_outer.width,
+        work.position.x,
+        work.size.width,
+    );
+    let horizontal_anchor = if i64::from(x) + i64::from(target_outer.width)
+        == i64::from(before_position.x) + i64::from(before_size.width)
+    {
+        "right"
+    } else if x == before_position.x {
+        "left"
+    } else {
+        "clamped"
+    };
+    let mut placement = ae_strom::startup::place_panel(
+        strip_y,
+        strip_height.saturating_add(frame_height),
+        target_outer.height,
+        work.position.y,
+        work.size.height,
+    );
+    let preferred = layout.planned_above.or_else(|| {
+        (state.panels_above.load(Ordering::Acquire)
+            && before_inner.height > strip_height
+            && target_inner.height > strip_height)
+            .then_some(true)
+    });
+    if target_inner.height > strip_height {
+        if let Some(above) = preferred {
+            let y = i64::from(strip_y)
+                - if above {
+                    i64::from(target_inner.height - strip_height)
+                } else {
+                    0
+                };
+            if y >= i64::from(work.position.y)
+                && y + i64::from(target_outer.height)
+                    <= i64::from(work.position.y) + i64::from(work.size.height)
+            {
+                placement.y = i32::try_from(y).map_err(|_| "Panel position overflow")?;
+                placement.panels_above = above;
+            }
+        }
+    }
+    if layout.prepare {
+        return Ok(LayoutResult {
+            panels_above: placement.panels_above,
+        });
+    }
+    let visible_layout = state
+        .startup
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?
+        .evidence
+        .is_some();
+    state
+        .panels_above
+        .store(placement.panels_above, Ordering::Release);
+    #[cfg(windows)]
+    if visible_layout {
+        let raw_hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
+        let width = i32::try_from(target_outer.width).map_err(|_| "Window width overflow")?;
+        let height = i32::try_from(target_outer.height).map_err(|_| "Window height overflow")?;
+        let y = placement.y;
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        window
+            .run_on_main_thread(move || {
+                use windows::Win32::{
+                    Foundation::HWND,
+                    UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER},
+                };
+                // SAFETY: this live window handle is used on its owning UI thread,
+                // with the same DPI awareness as Tauri and its WebView child.
+                let result = unsafe {
+                    SetWindowPos(
+                        HWND(raw_hwnd as *mut std::ffi::c_void),
+                        None,
+                        x,
+                        y,
+                        width,
+                        height,
+                        SWP_NOACTIVATE | SWP_NOZORDER,
+                    )
+                }
+                .map_err(|e| e.to_string());
+                let _ = tx.send(result);
+            })
+            .map_err(|e| e.to_string())?;
+        rx.recv_timeout(std::time::Duration::from_secs(5))
+            .map_err(|_| "Native window layout did not complete")??;
+    } else {
+        window
+            .set_size(tauri::LogicalSize::new(layout.width, layout.height))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_position(tauri::PhysicalPosition::new(x, placement.y))
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(windows))]
+    {
+        window
+            .set_size(tauri::LogicalSize::new(layout.width, layout.height))
+            .map_err(|e| e.to_string())?;
+        window
+            .set_position(tauri::PhysicalPosition::new(x, placement.y))
+            .map_err(|e| e.to_string())?;
+    }
     if state.smoke {
         let mut layouts = state.layouts.lock().unwrap();
         if layouts.len() < 64 {
-            layouts.push(json!({"compact": layout.compact, "requestedLogical": [layout.width, layout.height], "actualPhysical": window.inner_size().map_err(|e|e.to_string())?, "scaleFactor": window.scale_factor().map_err(|e|e.to_string())?}));
+            layouts.push(json!({"compact":layout.compact,"requestedLogical":[layout.width,layout.height],"actualPhysical":window.inner_size().map_err(|e|e.to_string())?,"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"atomicBounds":cfg!(windows)&&visible_layout,"horizontalAnchor":horizontal_anchor,"panelsAbove":placement.panels_above,"stripYBefore":strip_y,"stripYAfter":ae_strom::startup::player_strip_y(window.outer_position().map_err(|e|e.to_string())?.y,window.inner_size().map_err(|e|e.to_string())?.height,strip_height,placement.panels_above),"workArea":work,"outerBefore":{"position":before_position,"size":before_size},"outerAfter":{"position":window.outer_position().map_err(|e|e.to_string())?,"size":window.outer_size().map_err(|e|e.to_string())?}}));
         }
     }
-    Ok(())
+    Ok(LayoutResult {
+        panels_above: placement.panels_above,
+    })
 }
 #[tauri::command]
 fn start_drag(window: WebviewWindow) -> Result<(), String> {
@@ -197,6 +366,14 @@ async fn save_ui_evidence(
     let controller = state.controller.clone();
     finish(app, controller).await
 }
+fn mark_host_ready(app: &tauri::AppHandle, default_context_menus_enabled: Option<bool>) {
+    let host = app.state::<Host>();
+    let (lock, wake) = &*host.startup;
+    let mut state = lock.lock().unwrap();
+    state.default_context_menus_enabled = default_context_menus_enabled;
+    state.host_ready = true;
+    wake.notify_all();
+}
 fn initialize_player(
     app: &mut tauri::App,
     options: ae_strom::launch::Options,
@@ -232,6 +409,8 @@ fn initialize_player(
         data: options.data.clone(),
         smoke: options.smoke || options.startup_probe,
         layouts: Mutex::new(Vec::new()),
+        layout_lock: Mutex::new(()),
+        panels_above: AtomicBool::new(false),
         startup: Arc::new((
             Mutex::new(StartupState {
                 host_ready: false,
@@ -239,6 +418,7 @@ fn initialize_player(
                     .window_pos_valid
                     .then_some((restore.window_x, restore.window_y)),
                 evidence: None,
+                default_context_menus_enabled: None,
             }),
             Condvar::new(),
         )),
@@ -270,11 +450,43 @@ fn initialize_player(
     })
     .build()
     .map_err(|_| Failure(Kind::WebView))?;
-    // No window is visible until the frontend has settled fonts/layout.
-    let host = app.state::<Host>();
-    let (lock, wake) = &*host.startup;
-    lock.lock().unwrap().host_ready = true;
-    wake.notify_all();
+    // Configure WebView2 on its owning UI thread before releasing ui_ready.
+    // Only the native menu flag changes; keyboard editing/clipboard stays native.
+    #[cfg(windows)]
+    {
+        let handle = app.handle().clone();
+        _window
+            .with_webview(move |webview| {
+                // SAFETY: Tauri invokes this closure on the WebView's UI thread;
+                // all COM handles remain within the callback.
+                let result = unsafe {
+                    webview
+                        .controller()
+                        .CoreWebView2()
+                        .and_then(|view| view.Settings())
+                        .and_then(|settings| {
+                            settings.SetAreDefaultContextMenusEnabled(false)?;
+                            let mut enabled = Default::default();
+                            settings.AreDefaultContextMenusEnabled(&mut enabled)?;
+                            Ok(enabled.as_bool())
+                        })
+                }
+                .map_err(|_| Failure(Kind::WebView))
+                .and_then(|enabled| {
+                    if enabled {
+                        return Err(Failure(Kind::WebView));
+                    }
+                    mark_host_ready(&handle, Some(enabled));
+                    Ok(())
+                });
+                startup_failure::finish_setup(result, startup_failure::present, |code| {
+                    handle.exit(code)
+                });
+            })
+            .map_err(|_| Failure(Kind::WebView))?;
+    }
+    #[cfg(not(windows))]
+    mark_host_ready(app.handle(), None);
     Ok(())
 }
 fn run() -> Result<(), Failure> {
@@ -310,7 +522,20 @@ fn run() -> Result<(), Failure> {
             };
             match event {
                 tauri::WindowEvent::Moved(position) => {
-                    host.controller.position(position.x, position.y)
+                    let y = if host.panels_above.load(Ordering::Acquire) {
+                        match (window.inner_size(), window.scale_factor()) {
+                            (Ok(size), Ok(scale)) => ae_strom::startup::player_strip_y(
+                                position.y,
+                                size.height,
+                                (36.0 * scale).round().max(1.0) as u32,
+                                true,
+                            ),
+                            _ => position.y,
+                        }
+                    } else {
+                        position.y
+                    };
+                    host.controller.position(position.x, y)
                 }
                 tauri::WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();

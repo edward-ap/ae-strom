@@ -32,6 +32,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "url",
+ "windows 0.62.2",
 ]
 
 [[package]]

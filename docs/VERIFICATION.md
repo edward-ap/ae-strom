@@ -483,3 +483,256 @@ player, local installation and station profiles were not replaced or saved.
 The all-target run relinked the publication executables after the initial build;
 the hashes above record the final staged upload bytes, which passed the static
 publication check again. PE timestamps/debug identifiers are not reproducible.
+
+
+## Default WebView menus and Settings bank hotkeys, 2026-11-08
+
+The Windows host turns off AreDefaultContextMenusEnabled and reads it back on
+WebView2's owning UI thread before releasing the existing UI-ready barrier.
+Initialization failures use the existing sanitized startup-failure path. Native
+smoke evidence confirms defaultContextMenusEnabled=false. Keyboard editing and
+clipboard handling are unchanged; there is no document-wide key interception.
+
+Bank letter hotkeys also load the selected bank in Settings. This includes
+selecting an already-active bank after browsing a different bank and selecting
+while Settings is hidden. Settings bank buttons remain browse-only; typing,
+composition and modifier guards in editors continue to apply.
+
+The full npm pipeline passed syntax, types, vendor/icons and 104/104 Chromium
+checks at 100/150% scaling. The editor shortcut regression now asserts that
+Ctrl+X actually clears the field and Ctrl+V restores its exact URL, as well as
+checking that Ctrl+C does not invoke ticker copying. Added bank regressions
+cover hidden Settings, same-active-bank selection and typing in a URL editor.
+The native fake smoke passed 36/36 with no audio device or OS-input automation;
+its actual WebView2 readback is in ignored
+local-data/native-smoke-20261108-174050-831/native-ui.json. The locked release
+build, formatting and Git whitespace checks pass. Rust library/domain sources
+were not changed, so their preceding suites were not repeated.
+
+The rebuilt project-root EXE matches target/release and has a backup/delivery
+record in ignored local-data/context-menu-bank-*/. The running player and its
+profile under F:/miniradio were not replaced or stopped. These changes are local
+and unreleased; the published v0.1.1 remains the preceding release.
+
+
+## Playback intent through empty banks, 2026-11-08
+
+The live controller keeps requested_playing=true when selection reaches a slot
+without a stream URL. It retires the previous session, reports stopped/No stream
+URL without an error, and starts the next configured selection automatically.
+Explicit Stop while waiting clears that intent; selecting while stopped stays
+silent. Play on an empty slot can arm playback for the next configured choice.
+The existing terminal playback-error policy and synthetic Fake mode are unchanged.
+
+Two new loopback/TestSink regressions passed, decoding synthetic PCM without an
+audio device: configured A -> empty W/Z -> configured A/B resumes, empty slots
+leave zero HTTP/metadata/audio workers, mute/volume survive, Stop while empty
+prevents a later auto-start, and Play while empty arms it again. The full locked
+offline all-target suite passed 104/104 (89 library, two CLI, 13 integration).
+Formatting, Git whitespace checks and the final locked release build passed.
+UI/host source from the preceding 104-browser/36-native check is unchanged in
+this iteration; those checks were not repeated. Prior local fixes remain intact.
+
+The delivery record and any replaced project-root EXE backup are under ignored
+local-data/empty-bank-delivery-*/. The rebuilt candidate is available under
+target/release/ae-strom.exe; project-root replacement is performed only when
+that executable is not running. No live player or real profile was stopped or
+changed, and no GitHub release was updated by this local fix.
+
+
+## Right-anchored compact resizing, 2026-11-08
+
+Native resizing now measures physical outer geometry and offsets x by the
+actual width difference, preserving the right/top edge. Logical sizing remains
+DPI-aware. Layout IPC operations share a host mutex; the frontend captures each
+layout's compact flag/dimensions and serializes requests. setCompact exposes its
+completion promise so the native smoke can await both transitions.
+
+Eight positioning tests passed, including new compact/expanded roundtrips at
+100/150/200% DPI, negative monitor coordinates, inward expansion after moving
+compact to a monitor's right edge, and overflow bounds. The release build,
+formatting and Git whitespace checks passed. The full npm pipeline passed
+106/106 browser checks plus syntax/types/vendor/icons; the added delayed-IPC
+regression confirms rapid toggles execute in order with their original sizes.
+
+Native fake smoke passed 36/36 and the strengthened PowerShell geometry gate
+confirmed identical physical right/top edges for every recorded resize, with
+both real width-decrease and width-increase transitions present. Evidence is in
+ignored local-data/native-smoke-20261108-180835-319/native-ui.json. No OS drag or
+physical mixed-monitor/DPI transition was automated; those coordinate cases
+were covered by pure tests. No real audio or personal-profile writes occurred.
+
+The delivery record and replaced project-root EXE backup are under ignored
+local-data/right-anchor-delivery-*/; root replacement is skipped if it is
+running. The installed/running player is left alone. Earlier menu, bank and
+empty-slot playback-intent fixes remain in this local candidate. This iteration
+does not change the published GitHub release.
+
+
+## Settings/EQ opening direction, 2026-11-08
+
+The host selects the monitor at the player-strip center and uses its work area,
+including taskbar exclusions. It preserves that strip's y and the physical right
+edge while sizing Settings/EQ above or below. Its layout reply now supplies
+panelsAbove; the UI reorders the same controls with app CSS. Movement persistence
+stores the strip position even when the expanded window begins above it.
+
+Nine positioning tests passed, including lower work-area boundaries at multiple
+DPI, negative monitor origins, Settings/EQ heights, collapse restoration and a
+constrained-height case. The locked release build, formatting and Git whitespace
+checks pass. The full npm pipeline passed syntax/types/vendor/icons and 108/108
+Chromium checks at 100/150% scaling, including upward panel order and expand/
+collapse recovery with persistent controls.
+
+Two native fake runs passed 38/38 each: the ordinary smoke and a fresh synthetic
+profile placed with its strip at the work area's bottom-right edge. The second
+run confirmed Settings and EQ really rendered above the strip, expanded windows
+fit inside the native work area, all recorded strip/right-edge anchors stayed
+fixed and saved x/y matched the strip's startup coordinates. Evidence is under
+ignored local-data/native-smoke-20261108-183037-158/ and
+local-data/panels-bottom-6e12c391da4849f09dd8fbc439f84c44/. Neither run opened a
+real audio device or read/wrote a personal player profile.
+
+The candidate is target/release/ae-strom.exe; the project-root copy is replaced
+only when not running, with the predecessor and hashes retained under ignored
+local-data/panels-direction-delivery-*/. No running player was stopped. Earlier
+local fixes remain included; GitHub publication is unchanged.
+
+
+## Intermediate upward-panel jitter, 2026-11-08
+
+Earlier endpoint checks missed the visual transition and used outer height as
+panel height, inadvertently including a non-client Windows frame. The current
+calculation separates client panel pixels from the collapsed frame (the native
+fixture exposed a 13px vertical difference). A read-only layout preparation
+selects direction before commit. Native upward strips remain attached to the
+viewport bottom during opening/closing IPC, and visible Windows position/size
+change in one UI-thread SetWindowPos. Hidden startup keeps Tauri's sizing path.
+
+Nine geometry tests pass, with an added non-client-frame case. The locked offline
+release build, formatting and Git whitespace checks pass. Full npm checks pass
+syntax/types/vendor/icons and 110/110 browser checks at 100/150% scale. The new
+regression holds native resize replies pending and samples frames during both
+opening and closing, ensuring the strip remains on the old viewport edge until
+the viewport actually changes.
+
+Final normal and bottom-edge native fake runs pass 39/39 each. The bottom run
+has 20 intermediate upward samples with the strip at the client viewport edge;
+all physical strip/right anchors match, visible bounds are atomic and persisted
+strip y is unchanged. Evidence is in ignored
+local-data/native-smoke-20261108-195800-029/ and
+local-data/panel-jitter-bottom-5088b170e8f547afaeb1246dfb0df4d9/.
+An initial native run exposed a Stop assertion racing its state event; the
+harness now awaits the returned snapshot revision rather than assuming one RAF
+has delivered IPC. This does not alter playback behavior.
+
+The final candidate/root-copy status, checksum and previous-EXE backup are in
+ignored local-data/panel-jitter-delivery-*/. No running player or real profile
+was stopped or modified. No new registry packages were added: Windows 0.62.2
+was already in Cargo.lock and is now an explicit target-specific dependency.
+The public GitHub release remains unchanged by this local fix. These are
+programmatic frame/geometry checks, not a human-reviewed desktop video.
+
+
+## Horizontal expansion constrained to the work area, 2026-11-08
+
+The compact player now expands left while preserving its right edge only when
+that placement fits. At the left work-area edge it instead preserves its left
+edge and expands right. If neither edge-preserving placement fits, x is clamped
+so the requested width remains inside the current monitor work area. The
+existing atomic resize and vertical strip/client-frame handling remain intact.
+
+Eleven geometry tests passed. New cases cover compact-at-left/right, interior
+right-anchor preference, collapse behavior at 100/150/200% DPI, actual 150% native
+frame widths, negative monitor origins, inset taskbar work areas, neither-side
+fallback, out-of-range coordinates and a best-effort oversized-window case.
+The release build, formatting and Git whitespace checks passed.
+
+Native fake smoke passed 39/39 plus selected-edge/work-area assertions for each
+recorded resize: ignored
+local-data/native-smoke-20261108-200706-875/native-ui.json. The exact moved-compact
+left-edge coordinates are covered by pure geometry tests; no physical OS drag
+was automated. Web UI/IPC code is unchanged in this iteration, so the preceding
+110-browser check was not repeated. No real audio or personal profile was used.
+
+The candidate/root-copy result, hash and backup are in ignored
+local-data/horizontal-fit-delivery-*/. Replacement is skipped for a running EXE.
+Earlier local fixes remain included; the running player and published GitHub
+release were not changed.
+
+
+## Startup retry diagnosis, 2026-11-08
+
+The operator clarified that the message can occur while a station cannot start,
+not only after interruption. Inspection found that retry setup unconditionally
+replaced HTTP/codec/device causes with a generic stream/output-interrupted text;
+the CPAL callback also discarded its concrete error. Current code retains the
+cause in the ticker and warning output, including HTTP/probe source chains,
+output creation/start/callback errors and decoder/read/reset errors. Retry
+intervals, connection/read timeouts and playback routing remain unchanged.
+
+A loopback HTTP 502 regression confirms a temporary startup failure reports 502
+and retry status with Play intent retained; selecting a working synthetic PCM
+source starts playback and clears the stale cause. The focused check and full
+locked offline all-target suite passed: 110 tests (95 library, two CLI and 13
+integration). Formatting, Git whitespace and the final locked build pass.
+UI assets are unchanged, so the preceding 110-browser checks were not repeated.
+
+Read-only public-stream diagnostics used no output device: A-9 Deutschrock's
+native icy_peek probe received HTTP 200, about 306 KB and two ICY blocks over
+12 seconds without an HTTP error. The particular failed GUI startup was not
+captured, so this does not identify its cause or prove decode/output success.
+Evidence: ignored local-data/a9-start-probe-86d10e1d01754c898af73e0839ffa067/.
+
+FREQUENCE 3 FLAC resolved to three addresses in a direct bounded HTTP probe:
+213.246.45.50 returned 502; 193.106.119.46 and 193.106.119.145 returned 200,
+audio/ogg, and OggS bytes. A separate native Rust-transport probe got two 200
+responses from 193.106.119.46 and then a request TimedOut before response headers.
+Those network failures precede any audio-device/decoder setup. Evidence is under
+ignored local-data/a4-start-probe-0ee723e6e96b4b1eaf352ea40baa233b/. The FLAC
+inspector's expected no-ICY result is not an audio failure. These probes do not
+establish that every reported GUI failure has the same cause.
+
+The local candidate, checksum and predecessor backup are recorded under ignored
+local-data/retry-cause-delivery-*/. Root replacement is skipped when running.
+No live player was stopped, no private profile was edited and no GitHub release
+was updated. DNS/server failover behavior was not changed by this diagnostics fix.
+
+
+## Hover hints and strict certificate validity errors, 2026-11-08
+
+Removed native title attributes from controls and ticker updates, stopped
+setting icon-button tooltip text, and disabled EQ hover/focus/drag value popups.
+ARIA names, status/error descriptions, slider values, URL editing and keyboard
+clipboard behavior are retained. No pinned Tæt vendor assets were modified.
+Browser coverage exercises panel switches, URL focus/blur, bank changes, dynamic
+Play/Mute/Expand labels, track/error updates, and EQ pointer/keyboard interaction.
+
+HTTPS certificate verification remains enabled, with no slot exception and no
+automatic downgrade to HTTP. The Windows CERT_E_EXPIRED numeric error becomes
+the terminal English message "Server certificate has expired or is not yet
+valid"; original details remain in logs. Numeric recognition does not depend
+on localized Windows prose. Microsoft documents the code as a validity-period
+failure: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/45119343-8b87-412d-b19a-d06c51edb28e .
+
+A read-only public TLS probe of jfm1.hostingradio.ru:14536 failed normal
+verification as expired. Inspection of the public certificate (without sending
+an HTTP request) showed a SAN covering *.hostingradio.ru and an expiry of
+2026-10-23 17:43:25 UTC. The local UTC date was 2026-11-08. The certificate-only
+inspection used an unverified handshake to read the rejected certificate; this
+was not applied to the player or its transport. No output device was opened.
+
+The locked offline all-target Rust suite passed 111 tests: 96 library, two CLI,
+and 13 integration tests. The added test covers the real OS-code formatting,
+localized/hex representations, terminal classification, the exact English
+message, and preservation of unrelated transport causes. The release build
+passed. Native fake smoke passed 40/40 plus work-area/anchor assertions:
+ignored local-data/native-smoke-20261108-223958-889/native-ui.json. Native
+evidence uses programmatic focus and fake playback, not OS input or live audio.
+
+The full npm suite passed: syntax (36 files), strict types, pinned-vendor and
+icon integrity, and 112 browser tests at 100/150% scale. Updated local EXE delivery
+and predecessor backup are recorded in ignored local-data/hints-certificate-delivery-*/;
+replacement is skipped if that EXE is running. No live player was stopped,
+no personal profile was edited, and no commit/push or GitHub release update
+was performed in this iteration.

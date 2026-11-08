@@ -55,6 +55,37 @@ pub static ACTIVE_AUDIO_WORKERS: std::sync::atomic::AtomicUsize =
 const BASE_FRAME_SIZE: usize = 512;
 const RECONNECT_DELAY: Duration = Duration::from_secs(1);
 
+fn error_detail(error: &dyn std::error::Error) -> String {
+    let mut parts = Vec::new();
+    let mut current = Some(error);
+    for _ in 0..8 {
+        let Some(error) = current else {
+            break;
+        };
+        let text = error.to_string();
+        if parts.last() != Some(&text) {
+            parts.push(text);
+        }
+        current = error.source();
+    }
+    parts.join(": ")
+}
+
+fn http_setup_error(error: &std::io::Error) -> EngineError {
+    let detail = error_detail(error);
+    // native-tls/Schannel hides the underlying io::Error. Its Display retains
+    // the numeric Windows code even when the OS message is localized.
+    let lower = detail.to_ascii_lowercase();
+    if lower.contains("0x800b0101") || lower.contains("(os error -2146762495)") {
+        log::warn!("HTTP certificate validation failed: {detail}");
+        EngineError::CertificateValidity
+    } else if error.kind() == std::io::ErrorKind::InvalidInput {
+        EngineError::PermanentHttp(detail)
+    } else {
+        EngineError::Http(detail)
+    }
+}
+
 /// Thin wrapper to adapt a streaming reader into Symphonia's MediaSource.
 struct HttpSource<R: Read + Send> {
     reader: R,
@@ -106,6 +137,8 @@ impl<R: Read + Send> symphonia::core::io::MediaSource for HttpSource<R> {
 #[derive(Error, Debug)]
 /// Errors that can arise during playback setup/streaming.
 enum EngineError {
+    #[error("Server certificate has expired or is not yet valid")]
+    CertificateValidity,
     #[error("[audio] http: {0}")]
     Http(String),
     #[error("[audio] probe: {0}")]
@@ -124,6 +157,15 @@ enum EngineError {
     StreamBuild(String),
     #[error("[audio] permanent HTTP error: {0}")]
     PermanentHttp(String),
+}
+
+impl EngineError {
+    fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            Self::CertificateValidity | Self::PermanentHttp(_) | Self::NoTrack | Self::Decoder(_)
+        )
+    }
 }
 
 /// Mutable playback state shared between UI callbacks and the playback thread.
@@ -475,16 +517,11 @@ impl AudioEngine {
                         Ok(c) => c,
                         Err(e) => {
                             log::warn!("{e}");
-                            if matches!(
-                                e,
-                                EngineError::PermanentHttp(_)
-                                    | EngineError::NoTrack
-                                    | EngineError::Decoder(_)
-                            ) {
+                            inner_arc.lock().unwrap().last_error = Some(e.to_string());
+                            if e.is_terminal() {
                                 let mut state = inner_arc.lock().unwrap();
                                 state.status = "error".into();
-                                state.last_error =
-                                    Some("Cannot open the stream (HTTP or codec error)".into());
+                                state.last_error = Some(e.to_string());
                                 break;
                             }
                             if !Self::wait_for_reconnect_or_stop(&inner_arc) {
@@ -506,13 +543,16 @@ impl AudioEngine {
                         Ok(stream) => stream,
                         Err(e) => {
                             log::warn!("{e}");
+                            inner_arc.lock().unwrap().last_error = Some(e.to_string());
                             if !Self::wait_for_reconnect_or_stop(&inner_arc) {
                                 break;
                             }
                             continue;
                         }
                     };
-                    if stream.play().is_err() {
+                    if let Err(error) = stream.play() {
+                        inner_arc.lock().unwrap().last_error =
+                            Some(format!("Audio output start failed: {error}"));
                         if !Self::wait_for_reconnect_or_stop(&inner_arc) {
                             break;
                         }
@@ -524,7 +564,6 @@ impl AudioEngine {
                 match Self::playback_loop(inner_arc.clone(), ctx, stream) {
                     PlaybackLoopExit::Stopped => break,
                     PlaybackLoopExit::Reconnect => {
-                        log::warn!("[audio] stream interrupted, reconnecting");
                         if !Self::wait_for_reconnect_or_stop(&inner_arc) {
                             break;
                         }
@@ -579,14 +618,25 @@ impl AudioEngine {
         }
     }
 
+    fn reconnect_with_error(inner: &Arc<Mutex<InnerState>>, reason: String) -> PlaybackLoopExit {
+        inner.lock().unwrap().last_error = Some(reason);
+        PlaybackLoopExit::Reconnect
+    }
     fn wait_for_reconnect_or_stop(inner: &Arc<Mutex<InnerState>>) -> bool {
-        {
+        let reason = {
             let mut state = inner.lock().unwrap();
+            if state.stop_flag {
+                return false;
+            }
             state.status = "reconnecting".into();
-            state.last_error = Some("Stream or output interrupted; retrying".into());
+            let cause = state.last_error.as_deref().unwrap_or("Stream interrupted");
+            let reason = format!("{}; retrying", cause.trim_end_matches("; retrying"));
+            state.last_error = Some(reason.clone());
             state.is_playing = false;
             state.spectrum_levels = [0.0; 5];
-        }
+            reason
+        };
+        log::warn!("[audio] {reason}");
         let started = std::time::Instant::now();
         while started.elapsed() < RECONNECT_DELAY {
             {
@@ -669,13 +719,7 @@ impl AudioEngine {
         } else {
             request
         };
-        let response = request.call().map_err(|e| {
-            if e.kind() == std::io::ErrorKind::InvalidInput {
-                EngineError::PermanentHttp(e.to_string())
-            } else {
-                EngineError::Http(e.to_string())
-            }
-        })?;
+        let response = request.call().map_err(|e| http_setup_error(&e))?;
         log::debug!(target: "ae_strom::http_trace", "{}", serde_json::json!({"event":"audio_connection","requestId":response.request_id()}));
         let request_id = response.request_id();
         let metaint = crate::metadata::icy::interval(response.header("icy-metaint"))
@@ -748,7 +792,7 @@ impl AudioEngine {
                 &FormatOptions::default(),
                 &MetadataOptions::default(),
             )
-            .map_err(|e| EngineError::Probe(e.to_string()))?;
+            .map_err(|e| EngineError::Probe(error_detail(&e)))?;
 
         let mut format = probed.format;
         let container_metadata = ContainerMetadata::new(
@@ -859,10 +903,10 @@ impl AudioEngine {
                     move |data: &mut [f32], _| {
                         fill_output_from_ring_buffer(data, &inner_for_stream, &mut consumer);
                     },
-                    move |_| {
+                    move |error| {
                         if let Ok(mut state) = inner_for_error.lock() {
                             state.output_failed = true;
-                            state.last_error = Some("Audio output interrupted".into());
+                            state.last_error = Some(format!("Audio output failed: {error}"));
                         }
                     },
                     None,
@@ -916,21 +960,27 @@ impl AudioEngine {
             let packet = match next {
                 Ok(p) => p,
                 Err(SymphError::IoError(err)) => {
-                    log::warn!("[audio] packet read failed: {err}");
-                    return PlaybackLoopExit::Reconnect;
+                    return Self::reconnect_with_error(
+                        &inner,
+                        format!("Stream read failed: {}", error_detail(&err)),
+                    );
                 }
                 Err(SymphError::ResetRequired) => {
                     log::info!("[audio] stream reset requested, rebuilding decoder");
                     if let Err(err) = Self::rebuild_decoder_for_current_stream(&inner, &mut ctx) {
-                        log::warn!("{err}");
-                        return PlaybackLoopExit::Reconnect;
+                        return Self::reconnect_with_error(
+                            &inner,
+                            format!("Decoder reset failed: {err}"),
+                        );
                     }
                     sample_buf = None;
                     continue;
                 }
                 Err(err) => {
-                    log::warn!("[audio] packet read ended: {err}");
-                    return PlaybackLoopExit::Reconnect;
+                    return Self::reconnect_with_error(
+                        &inner,
+                        format!("Stream format failed: {err}"),
+                    );
                 }
             };
 
@@ -959,21 +1009,27 @@ impl AudioEngine {
                     continue;
                 }
                 Err(SymphError::IoError(err)) => {
-                    log::warn!("[audio] decoder I/O failed: {err}");
-                    return PlaybackLoopExit::Reconnect;
+                    return Self::reconnect_with_error(
+                        &inner,
+                        format!("Audio decode read failed: {}", error_detail(&err)),
+                    );
                 }
                 Err(SymphError::ResetRequired) => {
                     log::warn!("[audio] decoder requested reinitialization");
                     if let Err(err) = Self::rebuild_decoder_for_current_stream(&inner, &mut ctx) {
-                        log::warn!("{err}");
-                        return PlaybackLoopExit::Reconnect;
+                        return Self::reconnect_with_error(
+                            &inner,
+                            format!("Decoder reset failed: {err}"),
+                        );
                     }
                     sample_buf = None;
                     continue;
                 }
                 Err(err) => {
-                    log::warn!("[audio] decoder failed: {err}");
-                    return PlaybackLoopExit::Reconnect;
+                    return Self::reconnect_with_error(
+                        &inner,
+                        format!("Audio decoder failed: {err}"),
+                    );
                 }
             };
             let decoded_format_changed = if ctx.collect_timing {
@@ -1162,6 +1218,33 @@ impl AudioEngine {
 mod backpressure_regression {
     use super::*;
     use ringbuf::Rb;
+    #[test]
+    fn certificate_validity_failure_is_terminal_and_english() {
+        for detail in [
+            std::io::Error::from_raw_os_error(0x800b0101u32 as i32).to_string(),
+            "Localized certificate message (os error -2146762495)".into(),
+            "certificate error 0x800B0101".into(),
+        ] {
+            let wrapped = std::io::Error::other(std::io::Error::other(detail));
+            let error = http_setup_error(&wrapped);
+            assert!(matches!(error, EngineError::CertificateValidity));
+            assert!(error.is_terminal());
+            assert_eq!(
+                error.to_string(),
+                "Server certificate has expired or is not yet valid"
+            );
+        }
+        for detail in [
+            "request timed out",
+            "HTTP status 502 Bad Gateway",
+            "certificate handshake failed",
+        ] {
+            let error = http_setup_error(&std::io::Error::other(detail));
+            assert!(!error.is_terminal());
+            assert!(error.to_string().contains(detail));
+        }
+    }
+
     #[test]
     fn output_clock_distinguishes_real_silence_mute_and_empty_buffer() {
         let engine = AudioEngine::new_sink();

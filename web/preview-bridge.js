@@ -29,7 +29,8 @@ export function createPreviewBridge() {
      }
      return emit();
    },
-   setWindowLayout:async layout=>{layouts.push(clone(layout));},
+   prepareWindowLayout:async layout=>({panelsAbove:!layout.compact&&layout.height>36&&bridge.panelsAbove===true}),
+   setWindowLayout:async layout=>{layouts.push(clone(layout));return {panelsAbove:!layout.compact&&layout.height>36&&bridge.panelsAbove===true};},
    startDrag:async()=>{bridge.dragCount++;},
    copyTitle:async()=>{bridge.copies.push(state.fullTitle);},
    shutdown:async()=>{bridge.closed=true;},

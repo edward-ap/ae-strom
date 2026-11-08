@@ -2,6 +2,13 @@ import { inspectTypography } from './font-audit.js';
 /** Programmatic native IPC smoke. This is not native pointer/clipboard acceptance. */
 export async function runNativeSmoke(ui, bridge) {
  const checks=[], initial=await bridge.getSnapshot();
+ const layoutFrames=[], originalSetLayout=bridge.setWindowLayout.bind(bridge);
+ bridge.setWindowLayout=async (...args)=>{
+  const sample=()=>{const bar=document.querySelector('.player-strip'),owner=document.querySelector('.radio-owner');if(!bar||!owner)return;const r=bar.getBoundingClientRect();layoutFrames.push({time:performance.now(),above:owner.classList.contains('panels-above'),height:window.innerHeight,top:r.top,bottom:r.bottom});};
+  let active=true;const frame=()=>{if(active){sample();requestAnimationFrame(frame);}};
+  sample();requestAnimationFrame(frame);
+  try{return await originalSetLayout(...args);}finally{sample();active=false;}
+ };
  const check=(name,pass,details)=>checks.push({name,pass:Boolean(pass),details});
  try {
   check('Æ Strøm document identity',document.title==='Æ Strøm',{});
@@ -27,8 +34,9 @@ export async function runNativeSmoke(ui, bridge) {
   check('compact channel geometry',Math.abs(channelRect.width-40)<.75&&Math.abs(channelRect.height-26)<.75&&Math.abs(bankRect.width-14)<.75&&Math.abs(circleRect.width-17)<.75&&Math.abs(circleRect.height-17)<.75&&Math.abs(channelRect.right-circleRect.right-3)<.75&&Math.abs(circleRect.left-bankRect.right-2)<.75,{frame:[channelRect.width,channelRect.height],bankWidth:bankRect.width,circle:[circleRect.width,circleRect.height],rightInsideFrame:channelRect.right-circleRect.right,bankCircleGap:circleRect.left-bankRect.right});
   check('public volume grip variant',document.querySelector('.radio-volume').dataset.thumbShape==='grip',{});
   check('narrow five-band spectrum',document.querySelector('.radio-spectrum').getBoundingClientRect().width===42&&document.querySelector('.radio-spectrum').getBoundingClientRect().height===24,{});
-  ui.showPanel('settings');
+  await ui.showPanel('settings');
   check('settings pressed matches visibility',pressed('settings')&&!pressed('equalizer')&&!document.querySelector('.settings-panel').hidden,{});
+  { const bar=document.querySelector('.player-strip').getBoundingClientRect(),panel=document.querySelector('.settings-panel').getBoundingClientRect(),above=document.querySelector('.radio-owner').classList.contains('panels-above');check('Settings follows native opening direction',above?panel.bottom<=bar.top+.75:panel.top>=bar.bottom-.75,{above}); }
   check('settings native inputs',document.querySelectorAll('[data-station-slot]').length===10,{});
   check('paired Settings column labels',document.querySelectorAll('.station-header').length===2&&[...document.querySelectorAll('.station-header .column-label')].map(e=>e.textContent).join('|')==='Key|Stream URL|EQ Preset|Key|Stream URL|EQ Preset',{});
   const bankRow=document.querySelector('.bank-strip').getBoundingClientRect(),columns=document.querySelector('.station-columns').getBoundingClientRect();
@@ -53,15 +61,16 @@ export async function runNativeSmoke(ui, bridge) {
 
   const field=document.querySelector('[data-station-slot="5"]');field.focus();field.value='https://synthetic.invalid/'+ 'long-path/'.repeat(70);field.dispatchEvent(new Event('input',{bubbles:true}));field.setSelectionRange(12,90);
   const draft=field.value;
-  ui.setCompact(true);
+  await ui.setCompact(true);
   check('compact clears hidden panel pressed states',!pressed('settings')&&!pressed('equalizer'),{});
   check('compact exactly three elements',[...document.querySelector('.player-strip').children].filter(e=>getComputedStyle(e).display!=='none').length===3,{});
   check('compact content width',document.querySelector('.player-strip').getBoundingClientRect().width===102,{width:document.querySelector('.player-strip').getBoundingClientRect().width});
-  ui.setCompact(false);
+  await ui.setCompact(false);
   check('expand restores settings pressed state',pressed('settings')&&!pressed('equalizer'),{});
   check('draft persists',field.value===draft,{length:field.value.length});
-  ui.showPanel('eq');
+  await ui.showPanel('eq');
   check('panel switch synchronizes pressed states',!pressed('settings')&&pressed('equalizer'),{});
+  { const bar=document.querySelector('.player-strip').getBoundingClientRect(),panel=document.querySelector('.eq-panel').getBoundingClientRect(),above=document.querySelector('.radio-owner').classList.contains('panels-above');check('EQ follows native opening direction',above?panel.bottom<=bar.top+.75:panel.top>=bar.bottom-.75,{above}); }
   check('11 sliders',document.querySelectorAll('.eq-sliders input[type="range"]').length===11,{});
   const eqControls=[...document.querySelectorAll('.eq-sliders .dui-trackbar')],eqInputs=eqControls.map(e=>e.querySelector('input'));
   const eqHeight=document.querySelector('.radio-owner').getBoundingClientRect().height;
@@ -69,9 +78,8 @@ export async function runNativeSmoke(ui, bridge) {
   const eqInputRect=eqInputs[0].getBoundingClientRect(),grid=[...document.querySelectorAll('.eq-grid-line')];
   check('shared EQ grid matches native thumb travel',grid.length===7&&grid.filter(e=>e.classList.contains('eq-grid-line--major')).length===3&&grid.every(e=>{const r=e.getBoundingClientRect(),db=Number(e.dataset.eqDb);return Math.abs(r.y+r.height/2-(eqInputRect.y+12+(15-db)/30*(eqInputRect.height-24)))<.75;}),{thumbHeight:22,trackBorder:1,inputHeight:eqInputRect.height,values:grid.map(e=>Number(e.dataset.eqDb)),realOSInput:false});
   check('stock dark EQ grips and no individual ticks',eqControls.every(e=>e.dataset.thumbShape==='grip'&&getComputedStyle(e).getPropertyValue('--dui-thumb-background').includes('#33363c'))&&document.querySelectorAll('.eq-sliders .dui-trackbar__tick').length===0&&getComputedStyle(document.querySelector('.radio-volume')).getPropertyValue('--dui-thumb-background').includes('#33363c'),{});
-  const eqValue=e=>getComputedStyle(e.querySelector('.dui-trackbar__value')).visibility;
-  const valuesInitiallyHidden=eqControls.filter(e=>!e.matches(':hover')).every(e=>eqValue(e)==='hidden');eqInputs[0].focus();
-  check('EQ focus value is transient above slider',valuesInitiallyHidden&&eqValue(eqControls[0])==='visible'&&eqControls.slice(1).filter(e=>!e.matches(':hover')).every(e=>eqValue(e)==='hidden')&&eqControls[0].querySelector('.dui-trackbar__value').getBoundingClientRect().bottom<=eqInputRect.top,{programmaticFocus:true,realOSInput:false});
+  eqInputs[0].focus();
+  check('EQ focus does not show value hints',eqControls.every(e=>!e.classList.contains('dui-trackbar--show-value')&&getComputedStyle(e.querySelector('.dui-trackbar__value')).display==='none'),{programmaticFocus:true,realOSInput:false});
   button('equalizer').focus();
   ui.showPanel(null);
   const originalDispatch=bridge.dispatch;
@@ -92,9 +100,13 @@ export async function runNativeSmoke(ui, bridge) {
   } finally {bridge.dispatch=originalDispatch;}
   button('play').click();await new Promise(requestAnimationFrame);
   const final=await bridge.dispatch({type:'setPlaying',playing:false});
-  await new Promise(requestAnimationFrame);
+  const renderDeadline=performance.now()+3000;
+  while(ui.getState().snapshot.revision<final.revision&&performance.now()<renderDeadline)await new Promise(requestAnimationFrame);
   check('Stop restores idle brand',document.querySelector('.radio-ticker .dui-scrolling-label__text').textContent==='-= Æ Strøm =-'&&document.querySelector('.radio-ticker').classList.contains('radio-ticker--idle'),{});
   check('stop snapshot',!final.requestedPlaying,{generation:final.generation});
-  await window.__TAURI__.core.invoke('save_ui_evidence',{body:JSON.stringify({kind:'programmatic native fake-backend smoke',userInput:false,audio:false,typography,checks,pass:checks.every(c=>c.pass),snapshot:{mode:final.mode,generation:final.generation,status:final.status}},null,2)});
+  check('hover hints stay absent after panel and status changes',document.querySelectorAll('.radio-owner [title]:not([title=""])').length===0,{});
+  const upwardFrames=layoutFrames.filter(frame=>frame.above);
+  check('upward strip remains on viewport edge during layout',upwardFrames.every(frame=>Math.abs(frame.height-frame.bottom)<.75),{samples:upwardFrames.length});
+  await window.__TAURI__.core.invoke('save_ui_evidence',{body:JSON.stringify({kind:'programmatic native fake-backend smoke',userInput:false,audio:false,typography,layoutFrames,checks,pass:checks.every(c=>c.pass),snapshot:{mode:final.mode,generation:final.generation,status:final.status}},null,2)});
  } catch(error) { await window.__TAURI__.core.invoke('save_ui_evidence',{body:JSON.stringify({pass:false,error:String(error),checks},null,2)}); }
 }
