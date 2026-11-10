@@ -32,7 +32,23 @@ export declare class Panel<E extends { [K in keyof E]: object } = {}> extends Ba
   getPadding(): ControlDimension; setPadding(padding: ControlDimension, options?: MutationOptions): this;
   remove(controlOrName: BaseControl | string, options?: MutationOptions): BaseControl | null; clear(): this;
 }
-export interface FormField extends BaseControl { value: { get(): unknown; set(value: unknown, options?: MutationOptions): unknown; clear(options?: MutationOptions): unknown } }
+/** Stored currentness token: nonnegative safe integer, nonnegative bigint, or symbol.
+ * Counters increase; symbols are replaced, never reused, after each accepted value or
+ * pending-candidate change, including silent writes and A -> B -> A transitions. */
+export type ValidationRevision = number | bigint | symbol;
+export interface ValidationRevisionSource {
+  /** Pure synchronous read of a stable stored token, not a value hash or fresh symbol.
+   * Include every validation-relevant candidate change; do not mutate during reads. */
+  getValidationRevision(): ValidationRevision;
+}
+/** Structural field compatibility is unchanged; set/clear may still return void.
+ * Strict Form validation also needs tracked built-in state or a valid custom hook. */
+export interface FormField extends BaseControl {
+  value: { get(): unknown; set(value: unknown, options?: MutationOptions): unknown; clear(options?: MutationOptions): unknown };
+  getValidationRevision?(): ValidationRevision;
+}
+/** Explicit capability for independent custom fields; built-ins need no public hook. */
+export type RevisionedFormField = FormField & ValidationRevisionSource;
 export interface FormError { control: BaseControl; path: string; severity: 'error' | 'warning'; message: string; code?: string }
 export interface FormValidationResult { source: Form; ok: boolean; errors: FormError[]; value: Record<string, unknown> }
 export interface FormFieldChange { control?: BaseControl; path: string; oldValue: unknown; newValue: unknown; origin: string; userAction: boolean }
@@ -70,13 +86,18 @@ export declare class Form extends Panel<FormEvents> {
   row(...controls: ControlChild[]): this; col(...controls: ControlChild[]): this;
   columns(...columns: (readonly BaseControl[] | BaseControl)[]): this;
   static column(...controls: ControlChild[]): BaseControl[];
+  /** Untracked custom fields fail with FormError.code === 'validationRevision'.
+   * Superseded validation can fail without errors; currentness is not value equality. */
   validate(context?: Record<string, unknown>): FormValidationResult; isValid(): boolean; clearValidation(options?: MutationOptions): void;
   getFields(): FormField[]; forEach(callback: (control: FormField, name: string, index: number, form: this) => void): this;
   getValue(): Record<string, unknown>; getValues(): Record<string, unknown>;
   setValue(values?: Record<string, unknown>, options?: MutationOptions): boolean; setValues(values?: Record<string, unknown>, options?: MutationOptions): boolean;
   clearValues(options?: MutationOptions): boolean; resetValues(options?: MutationOptions): boolean; reset(options?: MutationOptions): boolean;
   setInitialValue(value?: Record<string, unknown>): this; setCleanValue(value?: Record<string, unknown>, options?: MutationOptions): this;
-  isDirty(): boolean; submit(options?: MutationOptions & { focusInvalid?: boolean }): boolean;
+  isDirty(): boolean;
+  /** Completes pending field drafts before beforeSubmit, then validates and submits.
+   * A rejected draft stops submission. beforeSubmit veto does not undo completed field edits. */
+  submit(options?: MutationOptions & { focusInvalid?: boolean }): boolean;
   focusFirstInvalid(options?: FocusOptions): boolean; setReadOnly(readOnly: boolean, options?: MutationOptions): this; isReadOnly(): boolean;
 }
 export type LayoutDirection = 'rows' | 'cols';

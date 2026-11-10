@@ -4,7 +4,7 @@ import { Panel } from './container-contracts.js';
 import type { ListOptions } from './List.js';
 import type { PanelOptions } from './container-contracts.js';
 import type { BaseControlOptions, ControlEvent, DataStore, SelectionModel, TreeDataView, TreeDataViewEntry, TreeDataViewChange, DefaultItemId, ItemId, MutationOptions, EventHandler } from '../core/index.js';
-import type { GridEditorFactory, CellEditor } from './grid-editor-contracts.js';
+import type { GridEditorFactory, CellEditor, CellEditorValidation } from './grid-editor-contracts.js';
 export type NodeDropPosition = 'before' | 'inside' | 'after';
 export interface NodeMove<T extends object, I extends ItemId> { id: I; item: T; targetId: I; targetItem: T; position: NodeDropPosition; oldParentId: unknown; parentId: unknown; oldIndex: number; index: number }
 export interface TreeListEvents<T extends object, I extends ItemId> {
@@ -60,6 +60,12 @@ export interface PropertyFocusChange extends ControlEvent<PropertyGrid> { target
 export interface PropertyCategoryToggle extends ControlEvent<PropertyGrid> { target: unknown; categoryId: string; group: PropertyGroup; collapsed: boolean; cancel: boolean }
 export interface PropertyToggle extends ControlEvent<PropertyGrid> { target: unknown; property: PropertyDefinition; group: PropertyGroup; path: string; expanded: boolean; cancel: boolean }
 export interface PropertyGridEvents {
+  /** Strict editor-currentness refusal only; ordinary validation failures keep their
+   * existing false return. Silent attempts suppress this event. newValue may be
+   * undefined when the attempt fails before its first successful value read. */
+  editReject: Omit<PropertyChange, 'cancel'> & {
+    reason: 'validation-revision' | 'validation-stale'; validation: CellEditorValidation;
+  };
   bind: ControlEvent<PropertyGrid> & { target: unknown; groups: PropertyGroup[] }; clear: ControlEvent<PropertyGrid> & { target: unknown };
   labelWidthChange: ControlEvent<PropertyGrid> & { value: number; oldValue?: number };
   editStart: ControlEvent<PropertyGrid> & { property: PropertyDefinition; group: PropertyGroup }; editCancel: ControlEvent<PropertyGrid> & { property: PropertyDefinition };

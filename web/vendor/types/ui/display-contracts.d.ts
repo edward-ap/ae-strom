@@ -86,9 +86,10 @@ export declare class CodeBlock extends BaseControl<{ change: EditorValueEvent<st
   language: string; copyButton: boolean; readonly value: { get(): string; set(value: string | null, options?: MutationOptions): boolean; clear(options?: MutationOptions): boolean };
   setCode(code: string | null, options?: MutationOptions): boolean; copy(options?: MutationOptions): Promise<boolean>;
 }
-export interface TextFieldOptions<C extends object = object> extends EditorControlOptions<string, C, TextField<C>>, TextFieldPresentationOptions {}
+export interface TextFieldOptions<C extends object = object> extends EditorControlOptions<string, C, TextField<C>>, TextFieldPresentationOptions { maskMode?: 'compact' | 'slots' }
 export declare class TextField<C extends object = object> extends EditorControl<string, C, { passwordVisibilityChange: EditorValueEvent<boolean, TextField<C>> }> {
   constructor(options?: TextFieldOptions<C>); constructor(container: HTMLElement | string, options?: TextFieldOptions<C>);
+  readonly maskMode: 'compact' | 'slots';
   inputType: string; isPassword: boolean; showRevealButton: boolean; mask: string | null; placeholder: string; unmaskValue: boolean; placeholderChar: string;
   maxLength: number | null; spellcheck: boolean | undefined; autocomplete: string | null;
   setPasswordVisible(visible: boolean, options?: MutationOptions): boolean; togglePasswordVisible(visible?: boolean | null, options?: MutationOptions): boolean;

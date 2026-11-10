@@ -42,7 +42,7 @@ Copy the full EXE to a writable portable folder after preserving the previous ve
 
 ### Where Tæt comes from
 
-The npm package is **taet-ui**, pinned to **0.6.0-rc.4** in [package.json](package.json) and [package-lock.json](package-lock.json). It is a **development dependency** used to reproduce vendored assets. Runtime imports use **web/vendor/taet-ui.js** and **web/vendor/taet-ui.css**, with bundled fonts, declarations and licenses; they do not resolve `node_modules` or contact npm.
+The npm package is **taet-ui**, pinned to **0.6.0-rc.7** in [package.json](package.json) and [package-lock.json](package-lock.json). It is a **development dependency** used to reproduce vendored assets. Runtime imports use **web/vendor/taet-ui.js** and **web/vendor/taet-ui.css**, with bundled fonts, declarations and licenses; they do not resolve `node_modules` or contact npm.
 
 For development, install Node **22+** with npm, then use the lockfile:
 
@@ -52,11 +52,11 @@ npm run vendor
 npm run test:vendor
 ```
 
-`npm ci` already installs **taet-ui@0.6.0-rc.4**, esbuild, the optional icon CLI and the test/type tools. No separate `npm install taet` step is needed. Keep optional dependencies enabled: esbuild and the icon CLI use platform-specific binary packages. Preserve **package-lock.json**; do not use `--omit=dev` for this workflow. npm lifecycle install hooks are disabled, while explicitly requested `npm run` commands still execute. See [npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/).
+`npm ci` already installs **taet-ui@0.6.0-rc.7**, esbuild, the optional icon CLI and the test/type tools. No separate `npm install taet` step is needed. Keep optional dependencies enabled: esbuild and the icon CLI use platform-specific binary packages. Preserve **package-lock.json**; do not use `--omit=dev` for this workflow. npm lifecycle install hooks are disabled, while explicitly requested `npm run` commands still execute. See [npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/).
 
 `npm run vendor` verifies the published package's integrity and pinned source hashes, regenerates the components ESM/CSS with **esbuild 0.28.2**, and checks the six canonical runtime assets and 85 declaration files against the committed manifest. It requires that manifest to exist. A clean clone already includes it; recover missing vendor/manifests from the same Git revision before regeneration. Regeneration should leave the tracked vendor files unchanged.
 
-Upgrading Tæt is a separate reviewed vendoring change, not an automatic update command. The package/lockfile, published-source provenance, expected asset/type hashes and version guards in the generator/checker must be updated together. The current regeneration script deliberately accepts only the pinned rc.4 delivery. See [BUILD.md](docs/BUILD.md) for the files involved.
+Upgrading Tæt is a separate reviewed vendoring change, not an automatic update command. The package/lockfile, published-source provenance, expected asset/type hashes and version guards in the generator/checker must be updated together. The current regeneration script deliberately accepts only the pinned rc.7 delivery. See [BUILD.md](docs/BUILD.md) for the files involved.
 
 ### Run development checks
 
@@ -135,7 +135,7 @@ When stopped without an error, the ticker shows **-= Æ Strøm =-** centered and
 
 Normal 725×36, compact 102×36, Settings 725×258, EQ 725×257 logical px. Noto Sans 12 px is bundled. Specialized SpectrumAnalyzer and ChannelIndicator remain app-owned on one BaseControl identity.
 
-Tæt UI is pinned to published **taet-ui@0.6.0-rc.4**, components ESM, source bfd3ddcddf1cdc539397e5d2ac5ed3cb976e72c2. Runtime assets, public declarations, source hashes and npm integrity are checked. Technical dui CSS/DOM names are retained. See [BUILD.md](docs/BUILD.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [CONSUMER_NOTES.md](docs/CONSUMER_NOTES.md) and [VERIFICATION.md](docs/VERIFICATION.md).
+Tæt UI is pinned to published **taet-ui@0.6.0-rc.7**, components ESM, source 53c5b177a5b68f1c1779afe97316480c65101840. Runtime assets, public declarations, source hashes and npm integrity are checked. Technical dui CSS/DOM names are retained. See [BUILD.md](docs/BUILD.md), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [CONSUMER_NOTES.md](docs/CONSUMER_NOTES.md) and [VERIFICATION.md](docs/VERIFICATION.md).
 
 Typography: bundled standard Noto Sans variable at 12 px. [Font audit and native/macOS limits](docs/FONT_AUDIT.md) records actual loading/rendering evidence and intentional OS fallback.
 

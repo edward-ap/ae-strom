@@ -35,13 +35,13 @@ Path remapping is best effort, not an assertion of anonymity or byte-identical b
 
 ## Reproduce pinned Tæt vendor assets
 
-The published package is **taet-ui@0.6.0-rc.4**. It has no JS runtime dependencies. In this application it is declared under devDependencies because its source is consumed by the vendoring step; the running UI imports the committed ESM file, not the npm package.
+The published package is **taet-ui@0.6.0-rc.7**. It has no JS runtime dependencies. In this application it is declared under devDependencies because its source is consumed by the vendoring step; the running UI imports the committed ESM file, not the npm package.
 
 ```text
 npm ci --include=dev --ignore-scripts
 npm run vendor
 npm run test:vendor
-git diff --exit-code -- web/vendor package.json package-lock.json provenance/taet-ui-rc4-source.json
+git diff --exit-code -- web/vendor package.json package-lock.json provenance/taet-ui-rc7-source.json
 ```
 
 `npm ci` installs the exact package/tool versions and verifies locked npm integrity without updating manifests. Keep optional dependencies enabled for the esbuild platform binary; the tested `--ignore-scripts` installation does not need a postinstall download fallback. A separate package installation is unnecessary. Lifecycle hooks remain disabled; explicitly requested npm run commands still run.
@@ -55,7 +55,7 @@ The manifest is a required committed input. If `web/vendor` or its manifest is m
 There is no automatic framework-upgrade script. A package-version bump alone is rejected. A reviewed upgrade must coordinate:
 
 - package.json and package-lock.json;
-- the published-source package/version/commit/integrity/files in `provenance/taet-ui-rc4-source.json` (and references if renamed);
+- the published-source package/version/commit/integrity/files in `provenance/taet-ui-rc7-source.json` (and references if renamed);
 - canonical runtime/type hashes and identity in `web/vendor/manifest.json`;
 - version/profile guards and build inputs in `scripts/vendor-taet.js` and `scripts/check-vendor.js`;
 - the framework summary/references in SOURCE_PROVENANCE.json and current documentation;

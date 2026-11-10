@@ -1,6 +1,7 @@
+param([string]$ExecutablePath)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$executable = Join-Path $projectRoot 'target\release\ae-strom.exe'
+$executable = if ($ExecutablePath) { (Resolve-Path -LiteralPath $ExecutablePath).Path } else { Join-Path $projectRoot 'target\release\ae-strom.exe' }
 if (-not (Test-Path -LiteralPath $executable)) { throw 'Build the native candidate first.' }
 $runName = 'native-smoke-' + (Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss-fff')
 $dataDirectory = Join-Path $projectRoot ('local-data\' + $runName)

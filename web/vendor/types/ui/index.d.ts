@@ -55,6 +55,7 @@ export type {
 } from '../core/index.js';
 export type {
  ControlChild, PanelScrollMode, PanelOptions, AttachOptions, PanelChildEvent, PanelEvents, FormField,
+ ValidationRevision, ValidationRevisionSource, RevisionedFormField,
  FormError, FormValidationResult, FormFieldChange, FormChange, FormValueChange, FormEvents,
  FormOptions, LayoutDirection, LayoutCellOptions, LayoutOptions, LayoutState, LayoutCellEvent,
  LayoutSplitterEvent, LayoutEvents,
@@ -119,7 +120,7 @@ export type {
  RadioGroupOptions, RadioGroupEvents, RadioItem, RadioLayout, InputOverlayService,
  EditorValidatorResult, EditorValidator, EditorValidationError, EditorValidationResult,
  EditorValidationApi, EditorValueApi, EditorValueEvent, EditorControlEvents, EditorControlOptions,
- TextInputOptions, TextInputEvents, TextFieldPresentationOptions, NumberInputOptions,
+ TextInputOptions, TextInputEvents, TextFieldPresentationOptions, NumberInputOptions, NumberInputUpdateMode, NumberInputCommitStatus, NumberInputCommitResult,
  NumberInputEvents, CheckBoxOptions, CheckBoxEvents, SwitchOptions, SwitchEvents, SwitchStateText,
  SwitchIndicatorOptions,
 } from './inputs.js';

@@ -7,6 +7,8 @@ import type { PropertyEditorContext, PropertyEditorFactory } from './collection-
 export type * from './grid-editor-contracts.js';
 export type * from './grid-editor-options.js';
 
+/** Preserves library-owned currentness from its control without exposing a public hook.
+ * Independent GridValueControl state must provide getValidationRevision(). */
 export declare class ControlCellEditor<TValue = unknown, TItem extends object = Record<string, unknown>,
   TId extends ItemId = DefaultItemId<TItem>> implements CellEditor<TValue, GridEditorValidationContext<TItem, TId>> {
   constructor(control: GridValueControl<TValue, GridEditorValidationContext<TItem, TId>>, context: GridCellEditorContext<TItem, TId>);
@@ -16,6 +18,7 @@ export declare class ControlCellEditor<TValue = unknown, TItem extends object = 
   destroyed: boolean;
   /** Failed mount disposes the adapter/control; teardown during mount does not install listeners afterward. */
   mount(container: HTMLElement): this;
+  prepareCommit(context?: GridEditorValidationContext<TItem, TId>): { ok: boolean; value?: TValue; status?: string };
   getValue(): TValue;
   validate(context?: GridEditorValidationContext<TItem, TId>): CellEditorValidation<TValue>;
   focus(): unknown;

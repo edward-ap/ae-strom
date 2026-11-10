@@ -2,7 +2,7 @@
 
 ## Exact standard face
 
-The app uses the stock **Noto Sans variable**, normal style, CSS weight range **100–900** from pinned **taet-ui@0.6.0-rc.4** (source bfd3ddcddf1cdc539397e5d2ac5ed3cb976e72c2). Current app text is **12 px**, measured weight 400. Tæt's root tokens are --dui-font-family: "Noto Sans", "Segoe UI", Arial, sans-serif; --dui-font-size: 12px; --dui-line-height: 18px. Per-control line heights remain deliberate layout values rather than separate font sizes.
+The app uses the stock **Noto Sans variable**, normal style, CSS weight range **100–900** from pinned **taet-ui@0.6.0-rc.7** (source 53c5b177a5b68f1c1779afe97316480c65101840). Current app text is **12 px**, measured weight 400. Tæt's root tokens are --dui-font-family: "Noto Sans", "Segoe UI", Arial, sans-serif; --dui-font-size: 12px; --dui-line-height: 18px. Per-control line heights remain deliberate layout values rather than separate font sizes.
 
 The shipped file is **web/vendor/fonts/NotoSans-variable.woff2**, **918,168 bytes**, SHA256 **7ed77c38412a34312e975abcd5eb2b2848a596f1921393f925a53a27938eb116**. The adjacent NotoSans-OFL.txt carries Copyright 2022 The Noto Project Authors and **SIL Open Font License 1.1**; its source collection is latin-greek-cyrillic. The original @font-face has only a local asset URL, normal style, 100–900 weights and font-display:swap; no local() font lookup or CDN is used. The existing native reveal handshake waits for the loaded face. No OS font installation is required.
 

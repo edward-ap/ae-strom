@@ -51,6 +51,8 @@ export interface TextGridEditorOptions<T extends object, I extends ItemId = Defa
   isPassword?: boolean;
   password?: boolean;
   showRevealButton?: boolean;
+  /** Slot mode is supported by text editors, not numeric descendants. */
+  maskMode?: [V] extends [string] ? 'compact' | 'slots' : never;
   mask?: string | null;
   unmaskValue?: boolean;
   placeholderChar?: string;
@@ -61,6 +63,7 @@ export interface TextGridEditorOptions<T extends object, I extends ItemId = Defa
 }
 export interface NumberGridEditorOptions<T extends object, I extends ItemId = DefaultItemId<T>>
   extends TextGridEditorOptions<T, I, number | null> {
+  updateMode?: 'live' | 'commit';
   min?: number | null;
   max?: number | null;
   step?: number | 'any' | null;

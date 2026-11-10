@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 - 2026-11-10
+
+- Upgrade the pinned Tæt UI runtime from 0.6.0-rc.4 to 0.6.0-rc.7, including matching source provenance, CSS/fonts/licenses and public declarations.
+- Recalculate ticker geometry after delayed font completion; cover delayed loading and teardown with a synthetic regression.
+- Allow the native fake-backend smoke harness to check a specified staged executable without replacing the installed player.
+
+
 ## 0.1.2 — 2026-11-08
 
 ### Playback and errors

@@ -37,7 +37,7 @@ export type { InputOverlayService } from './input-choice-contracts.js';
 export type { EditorValidatorResult, EditorValidator, EditorValidationError, EditorValidationResult,
   EditorValidationApi, EditorValueApi, EditorValueEvent, EditorControlEvents, EditorControlOptions } from './EditorControl.js';
 export type { TextInputOptions, TextInputEvents, TextFieldPresentationOptions } from './TextInput.js';
-export type { NumberInputOptions, NumberInputEvents } from './NumberInput.js';
+export type { NumberInputOptions, NumberInputUpdateMode, NumberInputCommitStatus, NumberInputCommitResult, NumberInputEvents } from './NumberInput.js';
 export type { CheckBoxOptions, CheckBoxEvents } from './CheckBox.js';
 export type { SwitchOptions, SwitchEvents, SwitchStateText, SwitchIndicatorOptions } from './Switch.js';
 

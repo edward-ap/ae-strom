@@ -19,7 +19,10 @@ export interface TextFieldPresentationOptions {
   autocomplete?: string | null;
 }
 export interface TextInputOptions<C extends object = object>
-  extends EditorControlOptions<string, C, TextInput<C>>, TextFieldPresentationOptions {}
+  extends EditorControlOptions<string, C, TextInput<C>>, TextFieldPresentationOptions {
+  /** Default compact; slots preserves empty token positions in string values. Construction only. */
+  maskMode?: 'compact' | 'slots';
+}
 /** Existing TextInput constructor; includes inherited TextField presentation methods. */
 export declare class TextInput<C extends object = object> extends EditorControl<string, C, TextInputEvents<C>> {
   constructor(options?: TextInputOptions<C>);
@@ -27,6 +30,7 @@ export declare class TextInput<C extends object = object> extends EditorControl<
   inputType: string;
   isPassword: boolean;
   showRevealButton: boolean;
+  readonly maskMode: 'compact' | 'slots';
   mask: string | null;
   placeholder: string;
   unmaskValue: boolean;

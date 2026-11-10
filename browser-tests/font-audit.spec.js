@@ -31,3 +31,26 @@ test('Chromium actually renders supported scripts with the custom Noto face and 
  await testInfo.attach('actual-fonts.json',{body:JSON.stringify(actual,null,2),contentType:'application/json'});
  await page.screenshot({path:testInfo.outputPath('coverage-fonts.png')});await session.detach();
 });
+
+
+test('ticker measures the completed delayed font and tears down during later font notifications',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ let releaseFont;const held=new Promise(resolve=>{releaseFont=resolve;});
+ await page.route('**/fonts/NotoSans-variable.woff2',async route=>{await held;await route.continue();});
+ await page.goto('/',{waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>window.radioPreview?.ui);
+ const title='Delayed font ticker: WWW iii 0123456789 '.repeat(12);
+ await page.evaluate(title=>window.radioPreview.bridge.update({status:'playing',requestedPlaying:true,fullTitle:title,displayTitle:title}),title);
+ releaseFont();await page.waitForFunction(()=>window.__RADIO_UI_READY__===true);
+ await page.evaluate(()=>document.fonts.ready);
+ await expect.poll(()=>page.evaluate(()=>{
+  const track=document.querySelector('.radio-ticker .dui-scrolling-label__track');
+  const text=track.querySelector('.dui-scrolling-label__text');
+  const animation=track.getAnimations()[0];if(!animation)return false;
+  const distance=parseFloat(getComputedStyle(text).width)+parseFloat(getComputedStyle(track).gap);
+  return Math.abs(animation.effect.getTiming().duration-distance/28*1000)<1;
+ })).toBe(true);
+ await page.evaluate(()=>{window.radioPreview.ui.destroy();for(const type of ['loading','loadingdone','loadingerror'])document.fonts.dispatchEvent(new Event(type));});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ expect(errors).toEqual([]);
+});

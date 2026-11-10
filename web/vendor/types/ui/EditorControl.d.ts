@@ -60,7 +60,10 @@ export interface EditorControlOptions<V = unknown, C extends object = object, S 
   onValidate?: EventHandler<EditorControlEvents<V, S>['validate']>;
   onValidationClear?: EventHandler<EditorControlEvents<V, S>['validationClear']>;
 }
-/** Generic value base; its default empty value is ''. It has no concrete input DOM. */
+/** Generic value base; its default empty value is ''. It has no concrete input DOM.
+ * Keep inherited .value authoritative and render through _syncInput for automatic
+ * Form currentness tracking. Polling external values or mutating array/object aliases
+ * bypasses that pipeline; independent state needs an explicit validation revision. */
 export declare class EditorControl<V = unknown, C extends object = object,
   E extends { [K in keyof E]: object } = {}> extends BaseControl<E, HTMLElement> {
   constructor(...args: '' extends V ? [options?: EditorControlOptions<V, C>] :

@@ -777,3 +777,90 @@ records the exact release source commit; SHA256SUMS covers both EXEs, CMD
 wrapper, license archive and build information. Earlier release assets remain
 untouched. The running player and personal profiles were not replaced or
 opened; physical OS-input, audio-device and macOS acceptance are not claimed.
+
+## Tæt UI rc.7 consumer upgrade, 2026-11-10
+
+The app now pins published taet-ui 0.6.0-rc.7. The npm tarball SHA-512 matches
+the lockfile and its SHA-256 is recorded in provenance/taet-ui-rc7-source.json.
+All 306 selected source/package/license files match clean upstream commit
+53c5b177a5b68f1c1779afe97316480c65101840, allowing only Windows text line endings
+when comparing to the checkout; provenance retains exact published byte hashes.
+One foundation/components bundle, six runtime assets and 85 declarations were
+regenerated and verified together. A second canonical regeneration passed.
+The old rc.4 provenance remains historical, not an active build input.
+
+The production app/controller code is unchanged. Built-in text/select editors
+remain compatible with the new strict revision tracking; the two custom
+BaseControl extensions are displays, not independent validation editors.
+The ticker now receives the upstream font-completion remeasurement fix.
+A new synthetic regression delays the actual bundled font response, checks the
+final ticker animation distance/duration, and destroys the UI before later font
+notifications. Focused branding/font tests passed 8/8 at 100/150% scale.
+
+Rust formatting passed. The isolated, locked, offline publication all-target
+suite passed 111 tests; documentation tests passed 7/7. Publication clippy passed
+with the same five inherited warnings. The release candidate built successfully
+and passed static personal-path, credential-pattern and CodeView/PDB checks:
+- local-data/publication-target/release/ae-strom.exe
+- 19049472 bytes
+- SHA256 fa2978a7d8d27c12cf010b93269e01be55cc07082ab41fae6cb104e79e035e1e
+
+The smoke harness now accepts -ExecutablePath so this exact staged executable
+can be checked without copying over a running or installed player. Two launches
+passed 40/40 plus compact/expand work-area and selected-edge geometry assertions:
+- local-data/native-smoke-20261110-151624-641/native-ui.json
+- local-data/native-smoke-20261110-152003-570/native-ui.json
+Both used separate synthetic profiles, no audio device and no physical OS input.
+The root player and personal profiles were not replaced or opened.
+
+The first browser pass was 110/112: its only failures were the two stale rc.4
+version-string expectations. These were updated to rc.7 without weakening the
+shared BaseControl identity or other behavioral assertions. An overlapping
+aggregate retry stopped before browser execution because the first run still
+owned port 5186; the final run is sequential. A temporary focused config first
+needed its web-server cwd corrected; its completed run passed as noted above.
+Exact published vendor declaration bytes include CRLF, so ordinary git diff
+--check labels those CR bytes as trailing whitespace. With the command-local
+core.whitespace=cr-at-eol interpretation, diff --check passes; no repository
+configuration or canonical vendor bytes were changed to silence that warning.
+
+This entry describes local upgrade verification, not a published release.
+Application version is still 0.1.2 pending a separate release-version update.
+Native IME, real audio/device behavior, physical input and macOS acceptance are
+not claimed by these synthetic checks.
+
+Final sequential npm test completed successfully: syntax (36 files), strict
+TypeScript, canonical vendor integrity, icon integrity and 114/114 Chromium
+browser tests at 100/150% scale (5.7 minutes). This includes the updated branding
+pin, both delayed-font/teardown cases, existing Settings draft/currentness,
+keyboard/editor guards, EQ, compact layout and Spectrum lifecycle regressions.
+
+## Windows release 0.1.3 preparation, 2026-11-10
+
+Cargo, Tauri, npm and both lockfile roots are now version 0.1.3. The production
+UI is byte-for-byte unchanged from the passing 114-test rc.7 browser suite above;
+only release metadata and documentation changed afterward. Syntax (36 files),
+strict types, vendor/icon integrity and Rust formatting passed again on 0.1.3.
+The remapped, locked, offline all-target Rust suite passed 111 tests and doc tests
+7/7 again. Clippy passed with the same five inherited warnings.
+
+Both final staged Windows x64 executables contain product version 0.1.3 and pass
+static personal-path, credential-pattern and CodeView/PDB guards:
+- ae-strom.exe: 19049472 bytes; SHA256 836df1e1dfb636b61af9845884475f4e62a5b208d5593a9d33a64df5bd4b1024.
+- icy_peek.exe: 4155392 bytes; SHA256 9b5c01de750aa119907ddc7800c4de322f77502ae680c5c464a8beace1b1c9cc.
+
+All 536 non-root Cargo lock entries are unchanged from 0.1.2. All five archived
+application/framework/font license notices match the current files byte-for-byte;
+the 359-component Rust license inventory is preserved. The 0.1.3 archive updates
+only the top-level application-version heading in its notices.
+
+Release artifacts are staged separately in local-data/publication-release-v0.1.3.
+Existing release assets and the installed/running root player remain untouched.
+BUILD_INFO.json and SHA256SUMS.txt identify the final source commit and artifacts.
+This preparation does not itself publish a tag, commit or GitHub release remotely.
+
+The final staged 0.1.3 player passed two native fake-backend launches, each 40/40
+plus work-area, selected-edge and strip-anchor geometry assertions:
+- local-data/native-smoke-20261110-154909-838/native-ui.json
+- local-data/native-smoke-20261110-154932-515/native-ui.json
+No live audio or physical OS-input testing is implied.

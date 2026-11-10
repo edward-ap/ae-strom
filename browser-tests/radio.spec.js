@@ -135,7 +135,7 @@ test('spectrum clears unpowered/reconnecting state and rejects stale generation'
 });
 
 
-test('SpectrumAnalyzer public API compatibility and pending-frame lifecycle on rc.4',async({page},testInfo)=>{
+test('SpectrumAnalyzer public API compatibility and pending-frame lifecycle on rc.7',async({page},testInfo)=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  const result=await page.evaluate(async()=>{
   // Test-owned fixture and browser scheduling probes; no component internals are accessed.

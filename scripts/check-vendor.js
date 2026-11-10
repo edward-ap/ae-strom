@@ -2,8 +2,8 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 const read=p=>JSON.parse(readFileSync(p,'utf8'));
 const hash=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
-const m=read('web/vendor/manifest.json'),pin=read('provenance/taet-ui-rc4-source.json');
-if(m.package!=='taet-ui'||m.version!=='0.6.0-rc.4'||m.profile!=='components'||m.sourceCommit!=='bfd3ddcddf1cdc539397e5d2ac5ed3cb976e72c2'||m.integrity!==pin.integrity||m.tarballSha256!==pin.tarballSha256)throw Error('Unpinned framework delivery');
+const m=read('web/vendor/manifest.json'),pin=read('provenance/taet-ui-rc7-source.json');
+if(m.package!=='taet-ui'||m.version!=='0.6.0-rc.7'||m.profile!=='components'||m.sourceCommit!=='53c5b177a5b68f1c1779afe97316480c65101840'||m.integrity!==pin.integrity||m.tarballSha256!==pin.tarballSha256)throw Error('Unpinned framework delivery');
 if(m.files.length!==6)throw Error('Unexpected runtime asset count');
 for(const f of m.files){const p='web/vendor/'+f.output;if(hash(p)!==f.sha256||readFileSync(p).length!==f.bytes)throw Error('Vendor asset mismatch: '+f.output);}
 for(const f of m.typeFiles)if(hash('web/vendor/'+f.path)!==f.sha256)throw Error('Vendor declaration mismatch: '+f.path);

@@ -7,9 +7,9 @@ import {fileURLToPath} from 'node:url';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>JSON.parse(readFileSync(p,'utf8'));
 const hash=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
-const pin=read(join(root,'provenance/taet-ui-rc4-source.json'));
+const pin=read(join(root,'provenance/taet-ui-rc7-source.json'));
 const locked=read(join(root,'package-lock.json')).packages['node_modules/taet-ui'];
-if(pin.version!=='0.6.0-rc.4'||pin.package!=='taet-ui'||locked?.version!==pin.version||locked.integrity!==pin.integrity)throw Error('Published taet-ui package pin mismatch');
+if(pin.version!=='0.6.0-rc.7'||pin.package!=='taet-ui'||locked?.version!==pin.version||locked.integrity!==pin.integrity)throw Error('Published taet-ui package pin mismatch');
 if(esbuildVersion!==pin.buildTool.esbuild)throw Error('Pinned esbuild required');
 const packageRoot=resolve(dirname(createRequire(import.meta.url).resolve('taet-ui')),'../..');
 const pkg=read(join(packageRoot,'package.json'));
@@ -20,9 +20,9 @@ if(expected.integrity!==pin.integrity||expected.sourceCommit!==pin.sourceCommit)
 const stage=join(root,'.gen/vendor-stage');mkdirSync(stage,{recursive:true});
 const entry=join(root,'.gen/taet-components-entry.mjs');writeFileSync(entry,"export * from 'taet-ui/foundation';\nexport * from 'taet-ui/components';\n");
 const common={absWorkingDir:root,bundle:true,format:'esm',platform:'browser',target:pin.buildTool.target,sourcemap:true,sourcesContent:true,charset:'utf8',legalComments:'eof',keepNames:true,minify:true,logLevel:'warning'};
-const js=await build({...common,entryPoints:[entry],outfile:join(stage,'taet-ui.min.js'),metafile:true,banner:{js:'/*! Tæt UI 0.6.0-rc.4 | MIT | see LICENSE and THIRD_PARTY_NOTICES.md */'}});
+const js=await build({...common,entryPoints:[entry],outfile:join(stage,'taet-ui.min.js'),metafile:true,banner:{js:'/*! Tæt UI 0.6.0-rc.7 | MIT | see LICENSE and THIRD_PARTY_NOTICES.md */'}});
 if(Object.values(js.metafile.outputs).some(o=>o.imports?.length))throw Error('Runtime external JS import introduced');
-await build({...common,entryPoints:[join(packageRoot,'src/ui/taet-ui.css')],outfile:join(stage,'taet-ui.min.css'),loader:{'.woff2':'file'},assetNames:'fonts/[name]',banner:{css:'/*! Tæt UI 0.6.0-rc.4 | MIT; bundled font OFL */'}});
+await build({...common,entryPoints:[join(packageRoot,'src/ui/taet-ui.css')],outfile:join(stage,'taet-ui.min.css'),loader:{'.woff2':'file'},assetNames:'fonts/[name]',banner:{css:'/*! Tæt UI 0.6.0-rc.7 | MIT; bundled font OFL */'}});
 const mappings=[['taet-ui.min.js','taet-ui.js',stage],['taet-ui.min.css','taet-ui.css',stage],['LICENSE','LICENSE',packageRoot],['THIRD_PARTY_NOTICES.md','THIRD_PARTY_NOTICES.md',packageRoot],['fonts/NotoSans-variable.woff2','fonts/NotoSans-variable.woff2',stage],['src/ui/fonts/NotoSans-OFL.txt','fonts/NotoSans-OFL.txt',packageRoot]];
 for(const [input,output,base] of mappings){const path=join(base,input),f=expected.files.find(x=>x.output===output);if(!f||hash(path)!==f.sha256||readFileSync(path).length!==f.bytes)throw Error('Canonical built artifact differs: '+output);}
 for(const [input,output,base] of mappings){const target=join(destination,output);mkdirSync(dirname(target),{recursive:true});copyFileSync(join(base,input),target);}
