@@ -9,6 +9,29 @@ pub struct Options {
     pub smoke: bool,
     pub startup_probe: bool,
     pub import: Option<PathBuf>,
+    data_explicit: bool,
+}
+
+impl Options {
+    /// macOS apps must never write inside their signed/read-only .app bundle.
+    /// Explicit profiles retain exactly the same cross-platform behavior.
+    pub fn use_app_data_profile(&mut self, app_local: &Path) -> Result<(), String> {
+        if !app_local.is_absolute() {
+            return Err("Application data directory must be absolute".into());
+        }
+        if self.startup_probe && !self.data_explicit {
+            return Err("Startup smoke requires an explicit isolated --data-dir".into());
+        }
+        if !self.data_explicit {
+            self.data = app_local.join(if self.mode == PlaybackMode::Live {
+                "player"
+            } else {
+                "preview"
+            });
+            self.legacy = None;
+        }
+        Ok(())
+    }
 }
 
 pub fn portable_root(executable: &Path) -> Result<PathBuf, String> {
@@ -61,6 +84,7 @@ pub fn parse(args: impl Iterator<Item = String>, executable: &Path) -> Result<Op
     if smoke && startup_probe {
         return Err("Choose one smoke mode".into());
     }
+    let data_explicit = data.is_some();
     let root = portable_root(executable)?;
     let legacy = if data.is_none() && mode == PlaybackMode::Live {
         Some(root.join("local-data/player/config.json"))
@@ -92,6 +116,7 @@ pub fn parse(args: impl Iterator<Item = String>, executable: &Path) -> Result<Op
         smoke,
         startup_probe,
         import,
+        data_explicit,
     })
 }
 
@@ -99,13 +124,16 @@ pub fn parse(args: impl Iterator<Item = String>, executable: &Path) -> Result<Op
 mod tests {
     use super::*;
     fn root() -> PathBuf {
+        // SystemTime can repeat across parallel tests on macOS.
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "ae-strom-routing-{}-{}",
+            "ae-strom-routing-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -188,6 +216,37 @@ mod tests {
         assert_eq!(o.legacy, Some(r.join("local-data/player/config.json")));
         assert!(o.startup_probe);
         assert!(opts(&r, &["--fake", "--smoke", "--startup-smoke"]).is_err());
+        std::fs::remove_dir_all(r).unwrap();
+    }
+    #[test]
+    fn app_data_profile_never_writes_into_bundle_or_imports_legacy() {
+        let r = root();
+        let bundle = r.join("Æ Strøm.app/Contents/MacOS/ae-strom");
+        let app_local = r.join("Application Support/local.edwardap.ae-strom");
+        for (args, folder) in [(vec![], "player"), (vec!["--fake".to_owned()], "preview")] {
+            let mut o = parse(args.into_iter(), &bundle).unwrap();
+            o.use_app_data_profile(&app_local).unwrap();
+            assert_eq!(o.data, app_local.join(folder));
+            assert!(o.legacy.is_none());
+            assert!(!o.data.starts_with(r.join("Æ Strøm.app")));
+        }
+        let explicit = r.join("explicit profile");
+        let mut o = parse(
+            [
+                "--data-dir".to_owned(),
+                explicit.to_string_lossy().into_owned(),
+            ]
+            .into_iter(),
+            &bundle,
+        )
+        .unwrap();
+        o.use_app_data_profile(&app_local).unwrap();
+        assert_eq!(o.data, explicit);
+        assert!(o.legacy.is_none());
+        assert!(o.use_app_data_profile(Path::new("relative")).is_err());
+        let mut implicit = opts(&r, &[]).unwrap();
+        implicit.startup_probe = true;
+        assert!(implicit.use_app_data_profile(&app_local).is_err());
         std::fs::remove_dir_all(r).unwrap();
     }
 }

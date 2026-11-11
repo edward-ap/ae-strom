@@ -18,7 +18,9 @@ Normal shutdown forces the latest config to disk, waiting for any older write fi
 
 The profile ID deterministically separates absolute profile directories; it is not a security hash. WebView2 owns the browser directory's internal names and may create cache/component/profile files even for an offline UI. Existing `local-data/player/webview` data is left untouched. It is not the station database.
 
-On macOS/Linux the Tauri platform app-local-data resolver is used, but this change has only been executed on Windows. Do not infer identical WebView engine layout or writable macOS app-bundle portability.
+On macOS, the default live profile is in `~/Library/Application Support/local.edwardap.ae-strom/player/config.json`; fake defaults use a separate `preview` directory there. The app never writes profiles into its `.app` bundle, and does not automatically discover old profiles. An explicit `--data-dir` retains the cross-platform selection rules. Profile locks remain in the application data directory. WKWebView uses a nonpersistent data store because the UI has no browser-persisted state; it does not use or claim the Windows browser directory layout. Rust configuration remains persistent. See [macOS verification](MACOS.md).
+
+On Linux, the Tauri app-local-data resolver is used for browser/lock storage; native execution is not verified.
 
 ## Selection rules
 

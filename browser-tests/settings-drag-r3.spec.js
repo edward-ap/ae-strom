@@ -46,7 +46,7 @@ test('drag routes once for chrome, ticker and nested channel; interactive and Se
  await page.evaluate(()=>window.radioPreview.ui.setCompact(true));const spectrum=await page.locator('.radio-spectrum').boundingBox();await gesture({x:spectrum.x+5,y:spectrum.y+8});expect(await count()).toBe(++expected);
  await page.evaluate(()=>window.radioPreview.ui.setCompact(false));
  const full='Synthetic full title '.repeat(30);await page.evaluate(full=>window.radioPreview.bridge.update({fullTitle:full,displayTitle:full.slice(0,240)}),full);
- await page.locator('.radio-ticker').click();await page.keyboard.press('Control+C');expect(await page.evaluate(()=>window.radioPreview.bridge.copies.at(-1))).toBe(full);
+ await page.locator('.radio-ticker').click();await page.keyboard.press('ControlOrMeta+C');expect(await page.evaluate(()=>window.radioPreview.bridge.copies.at(-1))).toBe(full);
  expect(await page.evaluate(()=>window.radioPreview.bridge.actions.some(a=>['setPlaying','selectStation'].includes(a.type)))).toBe(false);
 });
 

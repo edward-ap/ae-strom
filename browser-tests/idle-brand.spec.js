@@ -18,7 +18,7 @@ test('Play Stop and stopped station selection preserve the idle transition contr
  const title='Synthetic artist — a long track title '.repeat(20);await page.evaluate(title=>window.radioPreview.bridge.update({status:'playing',requestedPlaying:true,error:null,fullTitle:title,displayTitle:title}),title);
  await expect(text(page)).toHaveText(title.slice(0,240));await expect(ticker(page)).toHaveCSS('text-align','start');
  await expect.poll(()=>ticker(page).evaluate(e=>e.getAnimations({subtree:true}).some(a=>a.playState==='running'))).toBe(true);
- await page.keyboard.press('Control+c');expect(await page.evaluate(()=>window.radioPreview.bridge.copies.at(-1))).toBe(title);
+ await page.keyboard.press('ControlOrMeta+c');expect(await page.evaluate(()=>window.radioPreview.bridge.copies.at(-1))).toBe(title);
  await page.getByRole('button',{name:'Stop',exact:true}).click();await expect(text(page)).toHaveText(brand);expect(await ticker(page).evaluate(e=>e.getAnimations({subtree:true}).some(a=>a.playState==='running'))).toBe(false);
 });
 

@@ -14,6 +14,7 @@ use tauri::{Emitter, Manager, State, WebviewWindow};
 
 struct Host {
     controller: Controller,
+    closing: Arc<CloseState>,
     profile: ae_strom::profile::Prepared,
     data: PathBuf,
     smoke: bool,
@@ -22,6 +23,37 @@ struct Host {
     panels_above: AtomicBool,
     startup: Arc<(Mutex<StartupState>, Condvar)>,
 }
+/// Coalesce all UI/native close sources and allow retry after a save failure.
+#[derive(Default)]
+struct CloseState {
+    pending: AtomicBool,
+    complete: AtomicBool,
+}
+impl CloseState {
+    fn begin(&self) -> bool {
+        self.pending
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+    }
+    fn failed(&self) {
+        self.pending.store(false, Ordering::Release);
+    }
+    fn succeeded(&self) {
+        self.complete.store(true, Ordering::Release);
+    }
+}
+
+/// Exactly one side can claim queued native work: the callback or cancellation.
+#[cfg(any(target_os = "macos", test))]
+#[derive(Default)]
+struct NativeClaim(AtomicBool);
+#[cfg(any(target_os = "macos", test))]
+impl NativeClaim {
+    fn take(&self) -> bool {
+        !self.0.swap(true, Ordering::AcqRel)
+    }
+}
+
 #[derive(Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct UiReadyInfo {
@@ -61,12 +93,21 @@ async fn ui_ready(
         let primary = window.primary_monitor().map_err(|e|e.to_string())?;
         let monitors: Vec<ae_strom::startup::MonitorArea> = window.available_monitors().map_err(|e|e.to_string())?.iter().map(|m| {
             let position=m.position();let size=m.size();
-            ae_strom::startup::MonitorArea {x:position.x,y:position.y,width:size.width,height:size.height,scale:m.scale_factor(),primary:primary.as_ref().is_some_and(|p|p.position()==position&&p.size()==size)}
+            #[cfg(target_os = "macos")]
+            let (usable_position, usable_size) = (m.work_area().position, m.work_area().size);
+            #[cfg(not(target_os = "macos"))]
+            let (usable_position, usable_size) = (position, size);
+            ae_strom::startup::MonitorArea {x:usable_position.x,y:usable_position.y,width:usable_size.width,height:usable_size.height,scale:m.scale_factor(),primary:primary.as_ref().is_some_and(|p|p.position()==position&&p.size()==size)}
         }).collect();
         let planned = ae_strom::startup::plan_position(state.saved, &monitors, (info.width, info.height)).ok_or("No usable monitor for startup")?;
         let visible_before = window.is_visible().map_err(|e|e.to_string())?;
-        window.set_position(tauri::PhysicalPosition::new(planned.x,planned.y)).map_err(|e|e.to_string())?;
-        window.set_size(tauri::LogicalSize::new(info.width,info.height)).map_err(|e|e.to_string())?;
+        #[cfg(target_os = "macos")]
+        set_macos_bounds(&window, planned.x, planned.y, info.width, info.height)?;
+        #[cfg(not(target_os = "macos"))]
+        {
+            window.set_position(tauri::PhysicalPosition::new(planned.x,planned.y)).map_err(|e|e.to_string())?;
+            window.set_size(tauri::LogicalSize::new(info.width,info.height)).map_err(|e|e.to_string())?;
+        }
         let positioned = window.outer_position().map_err(|e|e.to_string())?;
         let size_before = window.inner_size().map_err(|e|e.to_string())?;
         window.show().map_err(|e|e.to_string())?;
@@ -74,6 +115,42 @@ async fn ui_ready(
         Ok(())
     }).await.map_err(|e|e.to_string())?
 }
+/// Tao's macOS setters defer AppKit work even when called on the UI thread.
+/// Complete one native frame transaction before acknowledging UI layout.
+#[cfg(target_os = "macos")]
+fn set_macos_bounds(
+    window: &WebviewWindow,
+    x: i32,
+    y: i32,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let target = window.clone();
+    let claim = Arc::new(NativeClaim::default());
+    let callback_claim = claim.clone();
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    window
+        .run_on_main_thread(move || {
+            if !callback_claim.take() {
+                return;
+            }
+            let _ = tx.send(ae_strom::macos::set_window_bounds(
+                &target, x, y, width, height,
+            ));
+        })
+        .map_err(|e| e.to_string())?;
+    match rx.recv_timeout(std::time::Duration::from_secs(5)) {
+        Ok(result) => result,
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) if !claim.take() => {
+            // AppKit has started the operation. Observe its real result rather
+            // than reporting failure while it can still change window bounds.
+            rx.recv()
+                .map_err(|_| "Native window layout was interrupted".to_owned())?
+        }
+        Err(_) => Err("Native window layout did not complete".to_owned()),
+    }
+}
+
 fn main_window(window: &WebviewWindow) -> Result<(), String> {
     if window.label() == "main" {
         Ok(())
@@ -278,7 +355,9 @@ async fn set_window_layout(
             .set_position(tauri::PhysicalPosition::new(x, placement.y))
             .map_err(|e| e.to_string())?;
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    set_macos_bounds(&window, x, placement.y, layout.width, layout.height)?;
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         window
             .set_size(tauri::LogicalSize::new(layout.width, layout.height))
@@ -290,7 +369,7 @@ async fn set_window_layout(
     if state.smoke {
         let mut layouts = state.layouts.lock().unwrap();
         if layouts.len() < 64 {
-            layouts.push(json!({"compact":layout.compact,"requestedLogical":[layout.width,layout.height],"actualPhysical":window.inner_size().map_err(|e|e.to_string())?,"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"atomicBounds":cfg!(windows)&&visible_layout,"horizontalAnchor":horizontal_anchor,"panelsAbove":placement.panels_above,"stripYBefore":strip_y,"stripYAfter":ae_strom::startup::player_strip_y(window.outer_position().map_err(|e|e.to_string())?.y,window.inner_size().map_err(|e|e.to_string())?.height,strip_height,placement.panels_above),"workArea":work,"outerBefore":{"position":before_position,"size":before_size},"outerAfter":{"position":window.outer_position().map_err(|e|e.to_string())?,"size":window.outer_size().map_err(|e|e.to_string())?}}));
+            layouts.push(json!({"compact":layout.compact,"requestedLogical":[layout.width,layout.height],"actualPhysical":window.inner_size().map_err(|e|e.to_string())?,"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"atomicBounds":cfg!(target_os = "macos")||(cfg!(windows)&&visible_layout),"horizontalAnchor":horizontal_anchor,"panelsAbove":placement.panels_above,"stripYBefore":strip_y,"stripYAfter":ae_strom::startup::player_strip_y(window.outer_position().map_err(|e|e.to_string())?.y,window.inner_size().map_err(|e|e.to_string())?.height,strip_height,placement.panels_above),"workArea":work,"outerBefore":{"position":before_position,"size":before_size},"outerAfter":{"position":window.outer_position().map_err(|e|e.to_string())?,"size":window.outer_size().map_err(|e|e.to_string())?}}));
         }
     }
     Ok(LayoutResult {
@@ -306,27 +385,57 @@ fn start_drag(window: WebviewWindow) -> Result<(), String> {
 async fn copy_title(window: WebviewWindow, state: State<'_, Host>) -> Result<(), String> {
     main_window(&window)?;
     let title = state.controller.snapshot().full_title;
-    tauri::async_runtime::spawn_blocking(move || {
-        #[cfg(windows)]
-        {
-            clipboard_win::set_clipboard_string(&title).map_err(|e| e.to_string())
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = title;
-            Err("Native title clipboard is currently implemented on Windows".to_owned())
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    #[cfg(target_os = "macos")]
+    {
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        window
+            .run_on_main_thread(move || {
+                let _ = tx.send(ae_strom::macos::copy_text(&title));
+            })
+            .map_err(|e| e.to_string())?;
+        tauri::async_runtime::spawn_blocking(move || {
+            rx.recv()
+                .map_err(|_| "Clipboard operation interrupted".to_owned())?
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        tauri::async_runtime::spawn_blocking(move || {
+            #[cfg(windows)]
+            {
+                clipboard_win::set_clipboard_string(&title).map_err(|e| e.to_string())
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = title;
+                Err("Native title clipboard is not implemented on this platform".to_owned())
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
 }
+
 async fn finish(app: tauri::AppHandle, controller: Controller) -> Result<(), String> {
+    let closing = app.try_state::<Host>().map(|host| host.closing.clone());
+    if closing.as_ref().is_some_and(|state| !state.begin()) {
+        return Ok(());
+    }
     let result = tauri::async_runtime::spawn_blocking(move || controller.shutdown())
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| "Shutdown worker failed".to_owned())
+        .and_then(|result| result);
     if let Err(ref e) = result {
+        if let Some(state) = closing {
+            state.failed();
+        }
         let _ = app.emit_to("main", "config-error", e);
         return result;
+    }
+    if let Some(state) = closing {
+        state.succeeded();
     }
     // Return the UI result before closing; audio/control work has already completed.
     tauri::async_runtime::spawn_blocking(move || {
@@ -360,7 +469,7 @@ async fn save_ui_evidence(
         return Err("Evidence body too large".into());
     }
     let ui: Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
-    let record = json!({"ui":ui,"host":{"pid":std::process::id(),"packageName":app.package_info().name,"productName":app.config().product_name,"identifier":app.config().identifier,"windowTitle":window.title().map_err(|e|e.to_string())?,"version":app.package_info().version.to_string(),"dataIsAbsolute":state.data.is_absolute(),"configFile":state.data.join("config.json"),"webviewDirectory":state.profile.webview,"profileOrigin":state.profile.origin,"profileName":state.data.file_name().map(|s|s.to_string_lossy().into_owned()),"webview":tauri::webview_version().unwrap_or_default(),"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"size":window.inner_size().map_err(|e|e.to_string())?,"mode":state.controller.snapshot().mode,"audioAllowed":false,"engineDiagnostics":state.controller.diagnostics().ok(),"layouts":*state.layouts.lock().unwrap(),"startup":state.startup.0.lock().unwrap().evidence}});
+    let record = json!({"ui":ui,"host":{"pid":std::process::id(),"packageName":app.package_info().name,"productName":app.config().product_name,"identifier":app.config().identifier,"windowTitle":window.title().map_err(|e|e.to_string())?,"version":app.package_info().version.to_string(),"dataIsAbsolute":state.data.is_absolute(),"configFile":state.data.join("config.json"),"webviewDirectory":if cfg!(target_os = "macos") { None } else { Some(&state.profile.webview) },"webviewStorage":if cfg!(target_os = "macos") { "nonpersistent" } else { "profile-directory" },"profileOrigin":state.profile.origin,"profileName":state.data.file_name().map(|s|s.to_string_lossy().into_owned()),"webview":tauri::webview_version().unwrap_or_default(),"scaleFactor":window.scale_factor().map_err(|e|e.to_string())?,"size":window.inner_size().map_err(|e|e.to_string())?,"mode":state.controller.snapshot().mode,"audioAllowed":false,"engineDiagnostics":state.controller.diagnostics().ok(),"layouts":*state.layouts.lock().unwrap(),"startup":state.startup.0.lock().unwrap().evidence}});
     let path = state.data.join("native-ui.json");
     std::fs::write(path, serde_json::to_vec_pretty(&record).unwrap()).map_err(|e| e.to_string())?;
     let controller = state.controller.clone();
@@ -378,11 +487,21 @@ fn initialize_player(
     app: &mut tauri::App,
     options: ae_strom::launch::Options,
 ) -> Result<(), Failure> {
-    let config_path = options.data.join("config.json");
+    #[cfg(target_os = "macos")]
+    ae_strom::macos::configure_menu(app.handle()).map_err(|_| Failure(Kind::Runtime))?;
     let app_local = app
         .path()
         .app_local_data_dir()
         .map_err(|_| Failure(Kind::AppData))?;
+    #[cfg(target_os = "macos")]
+    let options = {
+        let mut options = options;
+        options
+            .use_app_data_profile(&app_local)
+            .map_err(|_| Failure(Kind::AppData))?;
+        options
+    };
+    let config_path = options.data.join("config.json");
     let profile = ae_strom::profile::prepare(
         &config_path,
         options.legacy.as_deref(),
@@ -405,6 +524,7 @@ fn initialize_player(
         .map_err(|_| Failure(Kind::Controller))?;
     app.manage(Host {
         controller,
+        closing: Arc::new(CloseState::default()),
         profile,
         data: options.data.clone(),
         smoke: options.smoke || options.startup_probe,
@@ -423,7 +543,7 @@ fn initialize_player(
             Condvar::new(),
         )),
     });
-    let _window = tauri::WebviewWindowBuilder::from_config(
+    let builder = tauri::WebviewWindowBuilder::from_config(
         app.handle(),
         app.config()
             .app
@@ -434,22 +554,27 @@ fn initialize_player(
     .map_err(|_| Failure(Kind::WebView))?
     .visible(false)
     .background_color(tauri::window::Color(0, 0, 0, 255))
-    .data_directory(webview_directory)
-    .initialization_script(if options.startup_probe {
-        "window.__RADIO_STARTUP_PROBE__=true;window.__RADIO_SMOKE_AUTORUN__=false;"
-    } else if options.smoke {
-        "window.__RADIO_SMOKE_AUTORUN__=true;"
-    } else {
-        "window.__RADIO_SMOKE_AUTORUN__=false;"
-    })
-    .on_navigation(|url| {
-        matches!(
-            (url.scheme(), url.host_str()),
-            ("tauri", Some("localhost")) | ("http", Some("tauri.localhost"))
-        ) && url.port().is_none()
-    })
-    .build()
-    .map_err(|_| Failure(Kind::WebView))?;
+    .data_directory(webview_directory);
+    // WKWebView ignores data_directory. The UI keeps no browser state, so a
+    // nonpersistent store isolates every profile on all supported macOS versions.
+    #[cfg(target_os = "macos")]
+    let builder = builder.incognito(true);
+    let _window = builder
+        .initialization_script(if options.startup_probe {
+            "window.__RADIO_STARTUP_PROBE__=true;window.__RADIO_SMOKE_AUTORUN__=false;"
+        } else if options.smoke {
+            "window.__RADIO_SMOKE_AUTORUN__=true;"
+        } else {
+            "window.__RADIO_SMOKE_AUTORUN__=false;"
+        })
+        .on_navigation(|url| {
+            matches!(
+                (url.scheme(), url.host_str()),
+                ("tauri", Some("localhost")) | ("http", Some("tauri.localhost"))
+            ) && url.port().is_none()
+        })
+        .build()
+        .map_err(|_| Failure(Kind::WebView))?;
     // Configure WebView2 on its owning UI thread before releasing ui_ready.
     // Only the native menu flag changes; keyboard editing/clipboard stays native.
     #[cfg(windows)]
@@ -508,6 +633,18 @@ fn run() -> Result<(), Failure> {
             shutdown,
             save_ui_evidence
         ])
+        .on_menu_event(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if _event.id().as_ref() == ae_strom::macos::QUIT_MENU_ID {
+                if let Some(host) = _app.try_state::<Host>() {
+                    let controller = host.controller.clone();
+                    let app = _app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = finish(app, controller).await;
+                    });
+                }
+            }
+        })
         .setup(move |app| {
             startup_failure::finish_setup(
                 initialize_player(app, options),
@@ -551,9 +688,30 @@ fn run() -> Result<(), Failure> {
         .build(tauri::generate_context!())
         .map_err(|_| Failure(Kind::Runtime))?;
     app.run(|handle, event| {
+        if let tauri::RunEvent::ExitRequested {
+            code: None,
+            ref api,
+            ..
+        } = event
+        {
+            if let Some(host) = handle.try_state::<Host>() {
+                api.prevent_exit();
+                let controller = host.controller.clone();
+                let app = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = finish(app, controller).await;
+                });
+            }
+        }
         if matches!(event, tauri::RunEvent::Exit) {
             if let Some(host) = handle.try_state::<Host>() {
-                let _ = host.controller.shutdown();
+                if !host.closing.complete.load(Ordering::Acquire)
+                    && host.controller.shutdown().is_err()
+                {
+                    // Last-chance cleanup cannot veto native Dock/OS termination.
+                    // Never log configuration contents or raw storage errors here.
+                    log::error!("Player exited before settings could be confirmed saved");
+                }
             }
         }
     });
@@ -564,5 +722,37 @@ fn main() {
     if let Err(error) = run() {
         startup_failure::present(&error);
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::{CloseState, NativeClaim};
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn duplicate_close_requests_coalesce_and_failed_save_can_retry() {
+        let state = CloseState::default();
+        assert!(state.begin());
+        assert!(!state.begin());
+        state.failed();
+        assert!(state.begin());
+        state.succeeded();
+        assert!(state.complete.load(Ordering::Acquire));
+        assert!(!state.begin());
+    }
+
+    #[test]
+    fn canceled_native_callback_cannot_apply_late_bounds() {
+        let claim = NativeClaim::default();
+        assert!(claim.take()); // timeout cancels before main-thread execution
+        assert!(!claim.take()); // callback must not execute
+    }
+
+    #[test]
+    fn started_native_callback_cannot_be_reported_as_canceled() {
+        let claim = NativeClaim::default();
+        assert!(claim.take()); // main-thread callback starts
+        assert!(!claim.take()); // timeout must wait for the actual result
     }
 }

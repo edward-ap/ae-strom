@@ -1,10 +1,33 @@
 # Æ Strøm
 
-Compact native Rust radio with Tæt UI and a Tauri WebView. Technical project/crate: ae-strom / ae_strom, version 0.1.2.
+Compact native Rust radio with Tæt UI and a Tauri WebView. Technical project/crate: ae-strom / ae_strom, version 0.1.4 (unpublished candidate).
 
 ## Download for Windows
 
-Portable Windows x64 builds are published on [GitHub Releases](https://github.com/edward-ap/ae-strom/releases). If no release is listed yet, use the source build below. Download **ae-strom.exe** and run it from a writable folder; WebView2 Runtime is required. No stations or personal settings are bundled. macOS and Linux binaries are not provided or verified.
+Portable Windows x64 builds are published on [GitHub Releases](https://github.com/edward-ap/ae-strom/releases). If no release is listed yet, use the source build below. Download **ae-strom.exe** and run it from a writable folder; WebView2 Runtime is required. No stations or personal settings are bundled. Published downloads are currently Windows-only. A local Apple Silicon macOS port can be built as described below; Linux binaries are not provided or verified.
+
+## Build for macOS (Apple Silicon)
+
+The macOS port builds a native **Æ Strøm.app** with bundled Tæt rc.7 assets,
+WKWebView and CoreAudio support. Install Xcode command-line tools, Rust and
+Node 22+ with npm, then run from this checkout:
+
+```sh
+npm ci --include=dev --ignore-scripts
+npm run build:mac
+npm run test:native -- "target/release/bundle/macos/Æ Strøm.app/Contents/MacOS/ae-strom"
+```
+
+The app is created under `target/release/bundle/macos/`. This local build is not
+Developer ID signed or notarized and is not a published macOS release. For the sanitized distribution candidate, use `npm run build:mac:release`; see [release preparation](docs/RELEASE_0.1.4.md). No
+Gatekeeper/security settings need to be changed for source development.
+
+Normal startup is stopped. The Mac profile lives outside the app at
+`~/Library/Application Support/local.edwardap.ae-strom/player/config.json`.
+Replacing the app does not replace stations/settings. `--data-dir` still selects
+an explicit isolated profile; old Windows profiles are never imported automatically.
+Use **Cmd+C** (or Ctrl+C) outside editors to copy the full title. Native editor
+Cmd+C/X/V remains untouched. See [macOS build and verification](docs/MACOS.md).
 
 ### If WebView2 is unavailable
 

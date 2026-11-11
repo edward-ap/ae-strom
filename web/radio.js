@@ -241,7 +241,7 @@ export function createRadioUI(host, bridge) {
   }
   function keyboard(event) {
     if (destroyed || event.defaultPrevented || event.isComposing || event.repeat || isEditor(event.target)) return;
-    if (event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.code === 'KeyC') { event.preventDefault(); Promise.resolve(bridge.copyTitle()).catch(report); return; }
+    if ((event.ctrlKey !== event.metaKey) && !event.altKey && !event.shiftKey && event.code === 'KeyC') { event.preventDefault(); Promise.resolve(bridge.copyTitle()).catch(report); return; }
     if (!snapshot || event.ctrlKey || event.altKey || event.metaKey) return;
     let action;
     if (/^Key[A-Z]$/.test(event.code) && !event.shiftKey) {

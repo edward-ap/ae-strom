@@ -1,11 +1,14 @@
 import { test, expect } from '@playwright/test';
+const editorKeys = process.platform === 'darwin'
+ ? {start:'Meta+ArrowLeft',end:'Meta+ArrowRight',selectStart:'Meta+Shift+ArrowLeft',selectEnd:'Meta+Shift+ArrowRight',wordLeft:'Alt+Shift+ArrowLeft'}
+ : {start:'Home',end:'End',selectStart:'Shift+Home',selectEnd:'Shift+End',wordLeft:'Control+Shift+ArrowLeft'};
 const urlFor = n => `https://synthetic.invalid/station-${n}/` + 'segment0123456789/'.repeat(42) + '?token=synthetic&last=finish';
 const input = (page,slot) => page.locator(`[data-station-slot="${slot}"]`);
 const state = page => page.evaluate(() => window.radioPreview.ui.getState());
 const metrics = field => field.evaluate(e => ({value:e.value,start:e.selectionStart,end:e.selectionEnd,direction:e.selectionDirection,scroll:e.scrollLeft,rect:e.getBoundingClientRect().toJSON()}));
 test.beforeEach(async ({page}) => { await page.goto('/');await page.waitForFunction(()=>window.__RADIO_UI_READY__===true); });
 
-test('strip, compact ownership, drafts, focus, last panel and drag boundaries',async({page},testInfo)=>{
+test('strip, compact ownership, drafts, focus, last panel and drag boundaries',async({page,browserName},testInfo)=>{
  await expect(page.locator('.player-strip')).toHaveCSS('height','36px');
  expect((await page.locator('.radio-owner').boundingBox()).width).toBe(725);
  await page.getByRole('button',{name:'Station settings',exact:true}).click();
@@ -30,22 +33,22 @@ test('strip, compact ownership, drafts, focus, last panel and drag boundaries',a
  await page.getByRole('button',{name:'Play',exact:true}).click();
  expect(await page.evaluate(()=>window.radioPreview.bridge.dragCount)).toBe(1);
  await page.getByRole('button',{name:'Stop',exact:true}).click();
- await page.getByRole('button',{name:'Collapse player',exact:true}).focus();await page.keyboard.press('Enter');await page.keyboard.press('Tab');
+ await page.getByRole('button',{name:'Collapse player',exact:true}).focus();await page.keyboard.press('Enter');await page.keyboard.press(process.platform==='darwin'&&browserName==='webkit'?'Alt+Tab':'Tab');
  await expect(page.getByRole('button',{name:'Play',exact:true})).toBeFocused();
- await page.keyboard.press('Shift+Tab');await expect(page.getByRole('button',{name:'Expand player',exact:true})).toBeFocused();
+ await page.keyboard.press(process.platform==='darwin'&&browserName==='webkit'?'Alt+Shift+Tab':'Shift+Tab');await expect(page.getByRole('button',{name:'Expand player',exact:true})).toBeFocused();
 });
 
 test('browsed bank is independent, physical key and editor/default guards',async({page})=>{
  await page.getByRole('button',{name:'Station settings',exact:true}).click();await page.getByRole('button',{name:'Browse bank Z',exact:true}).click();
  expect((await state(page)).snapshot.activeBank).toBe(0);expect((await state(page)).browsedBank).toBe(25);
  const editor=input(page,9);await editor.fill(urlFor(0));const calls=await page.evaluate(()=>window.radioPreview.bridge.actions.length);
- await editor.press('Control+A');await editor.press('Control+C');await editor.press('Control+X');
+ await editor.press('ControlOrMeta+A');await editor.press('ControlOrMeta+C');await editor.press('ControlOrMeta+X');
  await expect(editor).toHaveValue('');
- await editor.press('Control+V');await expect(editor).toHaveValue(urlFor(0));
+ await editor.press('ControlOrMeta+V');await expect(editor).toHaveValue(urlFor(0));
  expect(await page.evaluate(()=>window.radioPreview.bridge.copies.length)).toBe(0);
  expect(await page.evaluate(()=>window.radioPreview.bridge.actions.length)).toBe(calls);
  await page.getByRole('button',{name:'Station settings',exact:true}).focus();
- await page.keyboard.press('KeyB');await page.keyboard.press('Digit0');await page.keyboard.press('NumpadAdd');await page.keyboard.press('NumpadMultiply');await page.keyboard.press('Control+C');
+ await page.keyboard.press('KeyB');await page.keyboard.press('Digit0');await page.keyboard.press('NumpadAdd');await page.keyboard.press('NumpadMultiply');await page.keyboard.press('ControlOrMeta+C');
  await expect.poll(async()=> (await state(page)).snapshot.activeBank).toBe(1);
  expect((await state(page)).browsedBank).toBe(1);
  await expect(page.getByRole('button',{name:'Browse bank B',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -78,22 +81,22 @@ test('EQ assignment, 11 real vertical controls, custom save/delete',async({page}
 });
 
 for(const slot of [0,5,6,7,8,9])test(`native URL selection and horizontal scroll slot ${slot+1}`,async({page},testInfo)=>{
- await page.getByRole('button',{name:'Play',exact:true}).click();await page.getByRole('button',{name:'Station settings',exact:true}).click();const field=input(page,slot);await field.fill(urlFor(slot));await field.press('Home');
+ await page.getByRole('button',{name:'Play',exact:true}).click();await page.getByRole('button',{name:'Station settings',exact:true}).click();const field=input(page,slot);await field.fill(urlFor(slot));await field.press(editorKeys.start);
  const bounds=await field.boundingBox();expect(bounds.width).toBeGreaterThan(200);
  await page.mouse.move(bounds.x+8,bounds.y+bounds.height/2);await page.mouse.down();await page.mouse.move(bounds.x+bounds.width+35,bounds.y+bounds.height/2,{steps:18});await page.waitForTimeout(250);
  const right=await metrics(field);expect(right.scroll).toBeGreaterThan(0);expect(right.end-right.start).toBeGreaterThan(10);
  await page.screenshot({path:testInfo.outputPath(`slot-${slot}-right-selection.png`)});
  await page.mouse.move(bounds.x-35,bounds.y+bounds.height/2,{steps:18});await page.waitForTimeout(250);const left=await metrics(field);await page.mouse.up();expect(left.scroll).toBeLessThan(right.scroll);
- await field.press('End');await field.press('Shift+Home');const reverse=await metrics(field);expect(reverse.start).toBe(0);expect(reverse.end).toBe(urlFor(slot).length);expect(reverse.direction).toBe('backward');
- await field.press('Home');await field.press('Shift+End');const forward=await metrics(field);expect(forward.start).toBe(0);expect(forward.end).toBe(urlFor(slot).length);expect(forward.direction).toBe('forward');
- await field.press('Control+Shift+ArrowLeft');await field.press('Shift+ArrowRight');
+ await field.press(editorKeys.end);await field.press(editorKeys.selectStart);const reverse=await metrics(field);expect(reverse.start).toBe(0);expect(reverse.end).toBe(urlFor(slot).length);expect(reverse.direction).toBe('backward');
+ await field.press(editorKeys.start);await field.press(editorKeys.selectEnd);const forward=await metrics(field);expect(forward.start).toBe(0);expect(forward.end).toBe(urlFor(slot).length);expect(forward.direction).toBe('forward');
+ await field.press(editorKeys.wordLeft);await field.press('Shift+ArrowRight');
  const preserved=await metrics(field);
  await page.evaluate(()=>{window.radioPreview.bridge.update({fullTitle:'Long synthetic title '.repeat(30),displayTitle:'Long synthetic title '.repeat(30)});for(let i=0;i<20;i++)window.radioPreview.bridge.spectrum([.1,.3,.6,.9,.5]);});
  const after=await metrics(field);expect({value:after.value,start:after.start,end:after.end,scroll:after.scroll}).toEqual({value:preserved.value,start:preserved.start,end:preserved.end,scroll:preserved.scroll});
- // Painted selection sentinels, at device pixel ratio. Selection must stay inside its native edit viewport.
- await page.addStyleTag({content:'input[data-station-slot]::selection{background:rgb(255,0,197)!important;color:white!important}'});await field.press('Control+A');
+ // Painted magenta selection sentinels tolerate native color conversion, at device pixel ratio. Selection must stay inside its native edit viewport.
+ await page.addStyleTag({content:'input[data-station-slot]::selection{background:rgb(255,0,197)!important;color:white!important}'});await field.press('ControlOrMeta+A');
  const png=await page.screenshot();const dpr=await page.evaluate(()=>devicePixelRatio);
- const paint=await page.evaluate(async({base64,bounds,dpr})=>{const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));const bitmap=await createImageBitmap(new Blob([bytes],{type:'image/png'}));const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;const ctx=canvas.getContext('2d');ctx.drawImage(bitmap,0,0);const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;let inside=0,outside=0;for(let y=Math.ceil(bounds.y*dpr);y<Math.floor((bounds.y+bounds.height)*dpr);y++)for(let x=Math.max(0,Math.floor((bounds.x-30)*dpr));x<Math.min(canvas.width,Math.ceil((bounds.x+bounds.width+75)*dpr));x++){const i=(y*canvas.width+x)*4;if(data[i]===255&&data[i+1]===0&&data[i+2]===197){if(x>=bounds.x*dpr&&x<(bounds.x+bounds.width)*dpr)inside++;else outside++;}}return{inside,outside};},{base64:png.toString('base64'),bounds,dpr});
+ const paint=await page.evaluate(async({base64,bounds,dpr})=>{const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));const bitmap=await createImageBitmap(new Blob([bytes],{type:'image/png'}));const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;const ctx=canvas.getContext('2d');ctx.drawImage(bitmap,0,0);const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;let inside=0,outside=0;for(let y=Math.ceil(bounds.y*dpr);y<Math.floor((bounds.y+bounds.height)*dpr);y++)for(let x=Math.max(0,Math.floor((bounds.x-30)*dpr));x<Math.min(canvas.width,Math.ceil((bounds.x+bounds.width+75)*dpr));x++){const i=(y*canvas.width+x)*4;if(data[i]>180&&data[i+1]<40&&data[i+2]>120&&data[i]>data[i+2]){if(x>=bounds.x*dpr&&x<(bounds.x+bounds.width)*dpr)inside++;else outside++;}}return{inside,outside};},{base64:png.toString('base64'),bounds,dpr});
  expect(paint.inside).toBeGreaterThan(10);expect(paint.outside).toBe(0);
  await testInfo.attach('selection-metrics',{body:JSON.stringify({slot,dpr,right,left,reverse,forward,paint},null,2),contentType:'application/json'});
  await testInfo.attach('selected-url',{body:png,contentType:'image/png'});
@@ -208,7 +211,7 @@ test('Settings and EQ can open above the strip without replacing editor controls
  await expect(page.locator('.radio-owner')).toHaveClass(/panels-above/);
  const order=selector=>page.evaluate(selector=>{const bar=document.querySelector('.player-strip').getBoundingClientRect(),panel=document.querySelector(selector).getBoundingClientRect();return panel.bottom<=bar.top+.75;},selector);
  expect(await order('.settings-panel')).toBe(true);
- await page.locator('[data-station-slot="0"]').focus();await page.locator('[data-station-slot="0"]').press('Control+A');
+ await page.locator('[data-station-slot="0"]').focus();await page.locator('[data-station-slot="0"]').press('ControlOrMeta+A');
  await page.getByRole('button',{name:'Equalizer',exact:true}).click();expect(await order('.eq-panel')).toBe(true);
  await page.getByRole('button',{name:'Collapse player',exact:true}).click();
  await expect(page.locator('.radio-owner')).not.toHaveClass(/panels-above/);

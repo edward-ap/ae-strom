@@ -1,0 +1,55 @@
+name: macOS checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Checks only: no signing credentials, upload, tag creation, or release publication.
+env:
+  CARGO_NET_RETRY: '5'
+  CARGO_HTTP_MULTIPLEXING: 'false'
+  RUSTUP_TOOLCHAIN: '1.96.0'
+  MACOSX_DEPLOYMENT_TARGET: '11.0'
+  CARGO_TARGET_DIR: local-data/publication-target-macos
+
+jobs:
+  macos-arm64:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22.14.0'
+          package-manager-cache: false
+      - name: Require Apple Silicon runner
+        run: test "$(uname -m)" = arm64
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+      - name: Install development dependencies
+        run: npm ci --include=dev --ignore-scripts
+      - name: Install synthetic browsers
+        run: npx playwright install chromium webkit
+      - name: Check UI and artifact guards
+        run: npm test
+      - name: Check WebKit at 1x and 2x
+        run: STROM_WEBKIT=1 npx playwright test --project=webkit-100 --project=webkit-200
+      - name: Rust format
+        run: cargo fmt --check
+      - name: Rust isolated regressions
+        run: node scripts/release-cargo.js test --release --locked --target aarch64-apple-darwin --all-targets
+      - name: Rust documentation examples
+        run: node scripts/release-cargo.js test --release --locked --target aarch64-apple-darwin --doc
+      - name: Rust lint (documented inherited warnings allowed)
+        run: node scripts/release-cargo.js clippy --release --locked --target aarch64-apple-darwin --all-targets
+      - name: Build and check sanitized app
+        run: npm run build:mac:release
+      - name: Native fake profile and geometry matrix
+        run: npm run test:native -- 'local-data/publication-target-macos/aarch64-apple-darwin/release/bundle/macos/Æ Strøm.app/Contents/MacOS/ae-strom'

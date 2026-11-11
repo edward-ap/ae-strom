@@ -91,7 +91,7 @@ impl Failure {
   Kind::Arguments=>"The launch arguments are invalid. Check --fake, --data-dir <absolute directory>, or --import-config <file>.",
   Kind::Paths=>"The application could not determine its executable location. Start it from an accessible local folder.",
   Kind::AudioBuild=>"This executable was built without native audio. Use a full build or explicit --fake mode.",
-  Kind::AppData=>"The Windows user AppData location is unavailable. Check that your local user profile is accessible and writable.",
+  Kind::AppData=>"The user application-data location is unavailable. Check that your local user profile is accessible and writable.",
   Kind::ConfigConflict=>"config.json beside the EXE and local-data/player/config.json contain different settings. Both files were preserved. Choose which profile to keep, or test a copy with --data-dir. No empty profile was substituted.",
   Kind::ImportConflict=>"The import would replace a different existing config.json. Both files were preserved. Import into a fresh --data-dir instead.",
   Kind::ConfigInvalid=>"A configuration or migration record is malformed, incomplete, or has unknown/duplicate fields. Check the JSON and use exactly one station-storage field: presets or stationBanks. No empty profile was substituted.",
@@ -102,8 +102,8 @@ impl Failure {
   Kind::Migration=>"The previous profile, backup or migration record could not be verified, or changed during preparation. Keep both configs and backups. Select an explicit copied profile with --data-dir; no automatic choice was made.",
   Kind::Controller=>"The native player could not initialize. Check the selected profile and available audio output. Keep your config and backups; no alternate profile was selected.",
   Kind::WebViewRuntime=>"Microsoft Edge WebView2 Runtime is unavailable for this Windows user. Install or repair the Evergreen Runtime from the official Microsoft page:\n\nhttps://developer.microsoft.com/en-us/microsoft-edge/webview2/\n\nThe player will not download or install it automatically. Close this message, install the Runtime yourself, then start the player again.",
-  Kind::WebView=>"The player window could not initialize. Check the Windows WebView2 Runtime and writable AppData storage. Keep your config and backups.",
-  Kind::Runtime=>"The desktop runtime could not initialize. Check Windows WebView2 availability and user storage access. Keep your config and backups.",
+  Kind::WebView=>"The player window could not initialize. Check the system WebView and writable application-data storage. Keep your config and backups.",
+  Kind::Runtime=>"The desktop runtime could not initialize. Check system WebView availability and user storage access. Keep your config and backups.",
  }
     }
 }
@@ -133,6 +133,8 @@ pub fn finish_setup(
 
 pub fn present(error: &Failure) {
     eprintln!("{error}");
+    #[cfg(target_os = "macos")]
+    crate::macos::present_startup_failure(error);
     #[cfg(windows)]
     {
         #[link(name = "user32")]

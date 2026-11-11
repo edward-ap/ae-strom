@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "category": "Music",
+    "shortDescription": "Compact native radio player",
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}

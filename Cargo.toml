@@ -1,9 +1,10 @@
 [package]
 name = "ae-strom"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 publish = false
 default-run = "ae-strom"
+autobins = false
 
 [lib]
 name = "ae_strom"
@@ -33,6 +34,11 @@ html-escape = { version = "0.2", optional = true }
 clipboard-win = "=5.4.1"
 windows = { version = "=0.62.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.4"
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSAlert", "NSApplication", "NSPasteboard", "NSWindow", "NSView"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString", "NSGeometry"] }
+
 [build-dependencies]
 tauri-build = "=2.7.1"
 
@@ -40,6 +46,10 @@ tauri-build = "=2.7.1"
 default = ["custom-protocol", "live-audio"]
 custom-protocol = ["tauri/custom-protocol"]
 live-audio = ["dep:cpal", "dep:symphonia", "dep:biquad", "dep:realfft", "dep:num-complex", "dep:reqwest", "dep:tokio", "dep:ringbuf", "dep:rubato", "dep:html-escape"]
+
+[[bin]]
+name = "ae-strom"
+path = "src/main.rs"
 
 [[bin]]
 name = "icy_peek"

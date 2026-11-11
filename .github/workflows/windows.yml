@@ -46,6 +46,10 @@ jobs:
       - name: Rust lint (documented inherited warnings allowed)
         run: node scripts/release-cargo.js clippy --release --locked --all-targets
       - name: Build full Windows application
-        run: node scripts/release-cargo.js build --release --locked --bin ae-strom
+        run: node scripts/release-cargo.js build --release --locked --bins
       - name: Check publication binary
         run: node scripts/check-release.js local-data/publication-target/release/ae-strom.exe
+      - name: Check inspector binary
+        run: node scripts/check-release.js local-data/publication-target/release/icy_peek.exe
+      - name: Native fake profile and geometry matrix
+        run: npm run test:native -- local-data/publication-target/release/ae-strom.exe

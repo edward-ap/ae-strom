@@ -34,3 +34,7 @@ Desktop.ini
 /config.json.pre-migration-*
 /webview/
 /*.exe.WebView2/
+
+# Python helper bytecode
+__pycache__/
+*.pyc

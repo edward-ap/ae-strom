@@ -1,6 +1,6 @@
 //! Port of mini-radio's icy_peek: headers, raw ICY blocks and changed titles.
 //! Uses Strom's cancellable transport/parser; never opens an audio device.
-#[path = "support/icy_console.rs"]
+#[path = "../diagnostics/icy_console.rs"]
 mod icy_console;
 
 fn main() {

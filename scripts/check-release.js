@@ -1,6 +1,7 @@
 // Static publication guard. This does not start the application or inspect a user profile.
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { assertNoPrivateContent } from './release-guards.js';
 const file = process.argv[2];
 if (!file) throw new Error('Use: node scripts/check-release.js <Windows x64 EXE>');
 const bytes = readFileSync(file);
@@ -8,16 +9,7 @@ const fail = message => { throw new Error(message); };
 if (bytes.toString('ascii', 0, 2) !== 'MZ') fail('Not a PE executable.');
 const pe = bytes.readUInt32LE(0x3c);
 if (bytes.toString('ascii', pe, pe + 4) !== 'PE\0\0' || bytes.readUInt16LE(pe + 4) !== 0x8664) fail('Expected Windows x64 PE.');
-const text = bytes.toString('latin1');
-const representations = [text, bytes.toString('utf16le'), bytes.subarray(1).toString('utf16le')];
-const privatePatterns = [
-  /[A-Z]:[\\/]Users[\\/]/i,
-  /[A-Z]:[\\/](?:Work|Documents and Settings)[\\/]/i,
-  /\/(?:Users|home)\/[a-z0-9_.-]+\//i,
-  /(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/,
-  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
-];
-if (privatePatterns.some(pattern => representations.some(value => pattern.test(value)))) fail('Possible personal build path or credential; inspect privately before publication.');
+assertNoPrivateContent(bytes);
 const optional = pe + 24;
 if (bytes.readUInt16LE(optional) !== 0x20b) fail('Expected PE32+.');
 const sections = optional + bytes.readUInt16LE(pe + 20);

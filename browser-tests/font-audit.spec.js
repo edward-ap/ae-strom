@@ -17,7 +17,8 @@ test('bundled standard face and typography cover all panels, native option DOM a
  await testInfo.attach('computed-fonts.json',{body:JSON.stringify(result,null,2),contentType:'application/json'});
 });
 
-test('Chromium actually renders supported scripts with the custom Noto face and records fallback separately',async({page},testInfo)=>{
+test('Chromium actually renders supported scripts with the custom Noto face and records fallback separately',async({page,browserName},testInfo)=>{
+ test.skip(browserName!=='chromium','Actual glyph inspection requires Chromium CDP; bundled font loading and computed typography run on every engine.');
  await page.goto('/');await page.waitForFunction(()=>window.__RADIO_UI_READY__===true);
  const session=await page.context().newCDPSession(page);await session.send('DOM.enable');await session.send('CSS.enable');
  const fonts=async selector=>{const {root}=await session.send('DOM.getDocument');const {nodeId}=await session.send('DOM.querySelector',{nodeId:root.nodeId,selector});return(await session.send('CSS.getPlatformFontsForNode',{nodeId})).fonts;};

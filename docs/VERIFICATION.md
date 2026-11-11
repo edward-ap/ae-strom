@@ -864,3 +864,8 @@ plus work-area, selected-edge and strip-anchor geometry assertions:
 - local-data/native-smoke-20261110-154909-838/native-ui.json
 - local-data/native-smoke-20261110-154932-515/native-ui.json
 No live audio or physical OS-input testing is implied.
+
+
+## macOS development port, 2026-11-11
+
+See [MACOS.md](MACOS.md) for the Apple Silicon build, isolated native WKWebView matrix, Chromium/WebKit checks, tested executable hash and remaining manual/audio limitations. This is local development evidence, not a published Mac release or Windows re-certification.

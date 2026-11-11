@@ -35,3 +35,6 @@ pub mod startup_failure;
 pub mod webview_prerequisite;
 
 pub mod config_issue;
+
+#[cfg(target_os = "macos")]
+pub mod macos;
